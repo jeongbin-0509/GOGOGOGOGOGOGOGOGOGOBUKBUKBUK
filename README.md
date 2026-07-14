@@ -1,1 +1,3 @@
 # GOGOGOGOGOGOGOGOGOGOBUKBUKBUK
+
+shame yourself
