@@ -1,0 +1,259 @@
+/* =========================================================
+   PROGRESS
+========================================================= */
+
+.progress{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:10px;
+
+    width:100%;
+
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.progress-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    gap:12px;
+
+}
+
+
+/* =========================================================
+   TITLE
+========================================================= */
+
+.progress-title{
+
+    font-size:var(--font-caption);
+
+    font-weight:var(--font-semibold);
+
+    color:var(--color-body);
+
+}
+
+
+/* =========================================================
+   VALUE
+========================================================= */
+
+.progress-value{
+
+    font-size:var(--font-caption);
+
+    font-weight:var(--font-semibold);
+
+    color:var(--color-primary);
+
+    font-variant-numeric:tabular-nums;
+
+}
+
+
+/* =========================================================
+   BAR
+========================================================= */
+
+.progress-bar{
+
+    position:relative;
+
+    width:100%;
+
+    height:8px;
+
+    overflow:hidden;
+
+    background:#E9EDF5;
+
+    border-radius:999px;
+
+}
+
+
+/* =========================================================
+   FILL
+========================================================= */
+
+.progress-fill{
+
+    position:absolute;
+
+    left:0;
+    top:0;
+    bottom:0;
+
+    width:0%;
+
+    background:var(--color-primary);
+
+    border-radius:999px;
+
+    transition:width .5s ease;
+
+}
+
+
+/* =========================================================
+   SIZE
+========================================================= */
+
+.progress-sm .progress-bar{
+
+    height:6px;
+
+}
+
+.progress-md .progress-bar{
+
+    height:8px;
+
+}
+
+.progress-lg .progress-bar{
+
+    height:12px;
+
+}
+
+
+/* =========================================================
+   COLOR
+========================================================= */
+
+.progress-success .progress-fill{
+
+    background:var(--color-success);
+
+}
+
+.progress-warning .progress-fill{
+
+    background:var(--color-warning);
+
+}
+
+.progress-danger .progress-fill{
+
+    background:var(--color-danger);
+
+}
+
+
+/* =========================================================
+   CIRCLE
+========================================================= */
+
+.progress-circle{
+
+    position:relative;
+
+    width:120px;
+
+    height:120px;
+
+}
+
+.progress-circle svg{
+
+    width:100%;
+
+    height:100%;
+
+    transform:rotate(-90deg);
+
+}
+
+.progress-circle-track{
+
+    fill:none;
+
+    stroke:#E9EDF5;
+
+    stroke-width:8;
+
+}
+
+.progress-circle-fill{
+
+    fill:none;
+
+    stroke:var(--color-primary);
+
+    stroke-width:8;
+
+    stroke-linecap:round;
+
+    transition:stroke-dashoffset .6s ease;
+
+}
+
+.progress-circle-content{
+
+    position:absolute;
+
+    inset:0;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    flex-direction:column;
+
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (min-width:768px){
+
+    .progress-lg .progress-bar{
+
+        height:14px;
+
+    }
+
+    .progress-circle{
+
+        width:140px;
+
+        height:140px;
+
+    }
+
+}
+
+
+/* =========================================================
+   DESKTOP
+========================================================= */
+
+@media (min-width:1200px){
+
+    .progress-circle{
+
+        width:160px;
+
+        height:160px;
+
+    }
+
+}

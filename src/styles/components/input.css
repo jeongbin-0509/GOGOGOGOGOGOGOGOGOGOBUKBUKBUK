@@ -1,0 +1,278 @@
+/* =========================================================
+   INPUT WRAPPER
+========================================================= */
+
+.input-group{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:8px;
+
+    width:100%;
+
+}
+
+
+/* =========================================================
+   LABEL
+========================================================= */
+
+.input-label{
+
+    font-size:var(--font-caption);
+
+    font-weight:var(--font-semibold);
+
+    color:var(--color-title);
+
+}
+
+
+/* =========================================================
+   INPUT BASE
+========================================================= */
+
+.input{
+
+    width:100%;
+
+    height:var(--input-height);
+
+    padding:0 18px;
+
+    background:var(--color-surface);
+
+    border:1px solid var(--color-border);
+
+    border-radius:var(--radius-md);
+
+    color:var(--color-title);
+
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast);
+
+}
+
+.input::placeholder{
+
+    color:var(--color-caption);
+
+}
+
+.input:hover{
+
+    border-color:#C9CDD4;
+
+}
+
+.input:focus{
+
+    border-color:var(--color-primary);
+
+    box-shadow:0 0 0 4px rgba(3,86,252,.12);
+
+}
+
+
+/* =========================================================
+   TEXTAREA
+========================================================= */
+
+.textarea{
+
+    width:100%;
+
+    min-height:120px;
+
+    padding:16px 18px;
+
+    background:var(--color-surface);
+
+    border:1px solid var(--color-border);
+
+    border-radius:var(--radius-md);
+
+    resize:vertical;
+
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast);
+
+}
+
+.textarea:focus{
+
+    border-color:var(--color-primary);
+
+    box-shadow:0 0 0 4px rgba(3,86,252,.12);
+
+}
+
+
+/* =========================================================
+   SELECT
+========================================================= */
+
+.select{
+
+    width:100%;
+
+    height:var(--input-height);
+
+    padding:0 18px;
+
+    background:var(--color-surface);
+
+    border:1px solid var(--color-border);
+
+    border-radius:var(--radius-md);
+
+    cursor:pointer;
+
+}
+
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+.search{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    height:var(--input-height);
+
+    padding:0 18px;
+
+    background:var(--color-surface);
+
+    border:1px solid var(--color-border);
+
+    border-radius:999px;
+
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast);
+
+}
+
+.search:focus-within{
+
+    border-color:var(--color-primary);
+
+    box-shadow:0 0 0 4px rgba(3,86,252,.12);
+
+}
+
+.search input{
+
+    flex:1;
+
+    min-width:0;
+
+}
+
+
+/* =========================================================
+   ERROR
+========================================================= */
+
+.input-error{
+
+    border-color:var(--color-danger);
+
+}
+
+.input-error:focus{
+
+    border-color:var(--color-danger);
+
+    box-shadow:0 0 0 4px rgba(239,68,68,.12);
+
+}
+
+.input-message{
+
+    font-size:var(--font-small);
+
+    color:var(--color-caption);
+
+}
+
+.input-message.error{
+
+    color:var(--color-danger);
+
+}
+
+.input-message.success{
+
+    color:var(--color-success);
+
+}
+
+
+/* =========================================================
+   DISABLED
+========================================================= */
+
+.input:disabled,
+.textarea:disabled,
+.select:disabled{
+
+    background:#F3F4F6;
+
+    color:var(--color-disabled);
+
+    cursor:not-allowed;
+
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (min-width:768px){
+
+    .input{
+
+        padding:0 20px;
+
+    }
+
+    .textarea{
+
+        padding:18px 20px;
+
+    }
+
+}
+
+
+/* =========================================================
+   DESKTOP
+========================================================= */
+
+@media (min-width:1200px){
+
+    .input{
+
+        padding:0 22px;
+
+    }
+
+    .textarea{
+
+        padding:20px 22px;
+
+    }
+
+}

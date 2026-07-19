@@ -1,105 +1,106 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
-
-    <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-
-    <title>Study Timer</title>
-
-    <!-- Pretendard -->
-    <link rel="stylesheet"
-          as="style"
-          crossorigin
-          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
-
-    <!-- Design System -->
-
-    <link rel="stylesheet" href="../styles/variables.css">
-
-    <link rel="stylesheet" href="../styles/layout.css">
-
-    <link rel="stylesheet" href="../styles/components/button.css">
-
-    <link rel="stylesheet" href="../styles/components/card.css">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>혜윰X세콜 &lt;돼지런한 여름방학&gt;</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/style.css">
+  <link rel="shortcut icon" href="../image/logo.png" type="image/x-icon">
 </head>
+<body>
 
-<body class="page">
+<header class="topbar container">
+  <div class="topbar-logo">
+    <img src="../image/logo.png" alt="로고">
+    <h1>혜윰X세콜 &lt;돼지런한 여름방학&gt;</h1>
+  </div>
 
-<div class="container">
+  <nav class="topbar-menu">
+    <a href="#" class="topbar-link active">홈</a>
+    <a href="#">기록</a>
+    <a href="#">랭킹</a>
+    <a href="#">통계</a>
+    <a href="#">MY</a>
+  </nav>
+</header>
 
-    <header class="logo">
+<main class="container page-content home">
 
-        <h1>StudyTimer</h1>
+<section class="home-dashboard">
 
-    </header>
+<div class="card card-hero home-today">
+  <div class="card-header">
+    <div>
+      <p class="caption">오늘 공부시간</p>
+      <h2 class="number-lg">05:32:18</h2>
+    </div>
+    <span class="badge badge-success">공부중</span>
+  </div>
 
-    <main class="dashboard">
+  <div class="progress progress-lg">
+    <div class="progress-header">
+      <span class="progress-title">목표 달성률</span>
+      <span class="progress-value">69%</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" style="width:69%;"></div>
+    </div>
+  </div>
 
-        <section class="card card-hero">
-
-            <div class="card-title">
-                오늘 공부시간
-            </div>
-
-            <div class="card-value">
-                5시간 32분
-            </div>
-
-            <button class="btn btn-primary btn-lg btn-block">
-                공부 시작
-            </button>
-
-        </section>
-
-        <section class="card">
-
-            <div class="card-title">
-                오늘 공부 기록
-            </div>
-
-            오늘 한 공부 내용
-
-        </section>
-
-        <section class="card">
-
-            <div class="card-title">
-                누적 공부시간
-            </div>
-
-            412시간
-
-        </section>
-
-        <section class="card">
-
-            <div class="card-title">
-                개인 순위
-            </div>
-
-            3위
-
-        </section>
-
-        <section class="card">
-
-            <div class="card-title">
-                반 순위
-            </div>
-
-            1위
-
-        </section>
-
-    </main>
-
+  <div class="btn-group">
+    <button class="btn btn-primary btn-lg">공부 시작</button>
+    <button class="btn btn-outline btn-lg">공부 종료</button>
+  </div>
 </div>
 
-</body>
+<div class="card home-record">
+  <div class="card-header">
+    <h3 class="title">오늘 공부 기록</h3>
+    <button class="btn btn-sm btn-primary">작성</button>
+  </div>
+  <div class="home-record-list">
+    <div class="record-item"><span>수학</span><span>02:10</span></div>
+    <div class="record-item"><span>영어</span><span>01:30</span></div>
+    <div class="record-item"><span>알고리즘</span><span>01:52</span></div>
+  </div>
+</div>
 
+<div class="card home-total">
+  <p class="caption">누적 공부시간</p>
+  <div class="home-total-value">
+    <span class="number">412</span>
+    <span class="body">시간</span>
+  </div>
+</div>
+
+<div class="card home-personal rank-card">
+  <div>
+    <p class="caption">개인 순위</p>
+    <h3 class="title">학년</h3>
+  </div>
+  <span class="rank-value">12위</span>
+</div>
+
+<div class="card home-class rank-card">
+  <div>
+    <p class="caption">반 순위</p>
+    <h3 class="title">2학년 3반</h3>
+  </div>
+  <span class="rank-value">1위</span>
+</div>
+
+</section>
+</main>
+
+<nav class="navbar">
+  <a class="nav-item active"><span>홈</span></a>
+  <a class="nav-item"><span>기록</span></a>
+  <a class="nav-item"><span>랭킹</span></a>
+  <a class="nav-item"><span>마이</span></a>
+</nav>
+
+</body>
 </html>

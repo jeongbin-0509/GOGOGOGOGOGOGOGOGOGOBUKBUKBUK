@@ -1,0 +1,163 @@
+/* =========================================================
+   SKELETON
+========================================================= */
+
+.skeleton{
+
+    position:relative;
+
+    overflow:hidden;
+
+    background:#ECEFF3;
+
+    border-radius:12px;
+
+}
+
+/* =========================================================
+   SHIMMER
+========================================================= */
+
+.skeleton::after{
+
+    content:"";
+
+    position:absolute;
+
+    inset:0;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,.65),
+            transparent
+        );
+
+    transform:translateX(-100%);
+
+    animation:skeleton-loading 1.3s infinite;
+
+}
+
+/* =========================================================
+   SIZE
+========================================================= */
+
+.skeleton-title{
+
+    width:60%;
+
+    height:24px;
+
+}
+
+.skeleton-text{
+
+    width:100%;
+
+    height:16px;
+
+}
+
+.skeleton-text.short{
+
+    width:70%;
+
+}
+
+.skeleton-button{
+
+    width:140px;
+
+    height:48px;
+
+    border-radius:999px;
+
+}
+
+.skeleton-avatar{
+
+    width:48px;
+
+    height:48px;
+
+    border-radius:50%;
+
+}
+
+.skeleton-card{
+
+    width:100%;
+
+    height:180px;
+
+    border-radius:var(--card-radius);
+
+}
+
+.skeleton-chart{
+
+    width:100%;
+
+    height:240px;
+
+    border-radius:var(--card-radius);
+
+}
+
+/* =========================================================
+   GROUP
+========================================================= */
+
+.skeleton-group{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:var(--space-3);
+
+}
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (min-width:768px){
+
+    .skeleton-card{
+
+        height:220px;
+
+    }
+
+}
+
+/* =========================================================
+   DESKTOP
+========================================================= */
+
+@media (min-width:1200px){
+
+    .skeleton-card{
+
+        height:260px;
+
+    }
+
+}
+
+/* =========================================================
+   ANIMATION
+========================================================= */
+
+@keyframes skeleton-loading{
+
+    to{
+
+        transform:translateX(100%);
+
+    }
+
+}

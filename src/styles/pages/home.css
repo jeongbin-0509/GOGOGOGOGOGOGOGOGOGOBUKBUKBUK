@@ -1,0 +1,225 @@
+/* =========================================================
+   HOME PAGE
+========================================================= */
+
+.home{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:var(--space-7);
+
+}
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
+.home-dashboard{
+
+    display:grid;
+
+    gap:var(--grid-gap);
+
+    grid-template-columns:1fr;
+
+    grid-template-areas:
+        "today"
+        "record"
+        "total"
+        "personal"
+        "class";
+
+}
+
+/* =========================================================
+   GRID AREA
+========================================================= */
+
+.home-today{
+
+    grid-area:today;
+
+}
+
+.home-record{
+
+    grid-area:record;
+
+}
+
+.home-total{
+
+    grid-area:total;
+
+}
+
+.home-personal{
+
+    grid-area:personal;
+
+}
+
+.home-class{
+
+    grid-area:class;
+
+}
+
+/* =========================================================
+   TODAY CARD
+========================================================= */
+
+.home-today{
+
+    display:flex;
+
+    flex-direction:column;
+
+    justify-content:space-between;
+
+}
+
+.home-time{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:6px;
+
+}
+
+.home-time .number-lg{
+
+    margin-top:6px;
+
+}
+
+.home-action{
+
+    margin-top:var(--space-5);
+
+}
+
+/* =========================================================
+   RECORD CARD
+========================================================= */
+
+.home-record-list{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:14px;
+
+}
+
+.record-item{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    gap:12px;
+
+    padding-bottom:12px;
+
+    border-bottom:1px solid var(--color-border);
+
+}
+
+.record-item:last-child{
+
+    border-bottom:none;
+
+    padding-bottom:0;
+
+}
+
+/* =========================================================
+   TOTAL CARD
+========================================================= */
+
+.home-total-value{
+
+    display:flex;
+
+    align-items:end;
+
+    gap:8px;
+
+}
+
+/* =========================================================
+   RANK CARD
+========================================================= */
+
+.rank-card{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+}
+
+.rank-value{
+
+    font-size:2rem;
+
+    font-weight:700;
+
+    color:var(--color-primary);
+
+}
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (min-width:768px){
+
+    .home-dashboard{
+
+        grid-template-columns:repeat(2,1fr);
+
+        grid-template-areas:
+            "today record"
+            "today record"
+            "total total"
+            "personal class";
+
+    }
+
+}
+
+/* =========================================================
+   DESKTOP
+========================================================= */
+
+@media (min-width:1200px){
+
+    .home-dashboard{
+
+        grid-template-columns:2fr 1fr;
+
+        grid-template-areas:
+            "today personal"
+            "today class"
+            "record total";
+
+    }
+
+    .home-today{
+
+        min-height:380px;
+
+    }
+
+}
