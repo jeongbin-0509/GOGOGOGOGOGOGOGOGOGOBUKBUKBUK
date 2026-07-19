@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}회원가입{% endblock %}
+{% block body %}
+<main class="signup-page container">
+  <div class="signup-card card">
+    <h1>회원가입</h1>
+    <p class="caption signup-caption">학생 정보를 정확하게 입력해 주세요.</p>
+    <form class="signup-form" method="post" novalidate>
+      <div class="input-group"><label class="input-label" for="name">이름</label><input class="input" id="name" name="name" required></div>
+      <div class="signup-grid">
+        <div class="input-group"><label class="input-label" for="grade">학년</label><input class="input" id="grade" name="grade" type="number" min="1" max="3" required></div>
+        <div class="input-group"><label class="input-label" for="class_no">반</label><input class="input" id="class_no" name="class_no" type="number" min="1" max="20" required></div>
+        <div class="input-group"><label class="input-label" for="student_no">번호</label><input class="input" id="student_no" name="student_no" type="number" min="1" max="50" required></div>
+      </div>
+      <div class="input-group"><label class="input-label" for="username">아이디</label><input class="input" id="username" name="username" minlength="4" autocomplete="username" required></div>
+      <div class="input-group"><label class="input-label" for="password">비밀번호</label><input class="input" id="password" name="password" type="password" minlength="6" autocomplete="new-password" required></div>
+      <div class="input-group"><label class="input-label" for="password_confirm">비밀번호 확인</label><input class="input" id="password_confirm" name="password_confirm" type="password" minlength="6" autocomplete="new-password" required></div>
+      <label class="checkbox"><input type="checkbox" name="terms" required><span>이용약관에 동의합니다.</span></label>
+      <label class="checkbox"><input type="checkbox" name="privacy" required><span>개인정보 처리방침에 동의합니다.</span></label>
+      <button class="btn btn-primary btn-lg btn-block" type="submit">회원가입</button>
+      <a class="btn btn-outline btn-lg btn-block" href="{{ url_for('login') }}">로그인으로</a>
+    </form>
+  </div>
+</main>
+{% endblock %}
