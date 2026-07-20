@@ -1,106 +1,406 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>혜윰X세콜 &lt;돼지런한 여름방학&gt;</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
-  <link rel="stylesheet" href="../styles/style.css">
-  <link rel="shortcut icon" href="../image/logo.png" type="image/x-icon">
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
 
-<header class="topbar container">
-  <div class="topbar-logo">
-    <img src="../image/logo.png" alt="로고">
-    <h1>혜윰X세콜 &lt;돼지런한 여름방학&gt;</h1>
-  </div>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <nav class="topbar-menu">
-    <a href="#" class="topbar-link active">홈</a>
-    <a href="#">기록</a>
-    <a href="#">랭킹</a>
-    <a href="#">통계</a>
-    <a href="#">MY</a>
-  </nav>
-</header>
+    <title>혜윰X세콜 &lt;돼지런한 여름방학&gt;</title>
 
-<main class="container page-content home">
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+    />
 
-<section class="home-dashboard">
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
 
-<div class="card card-hero home-today">
-  <div class="card-header">
-    <div>
-      <p class="caption">오늘 공부시간</p>
-      <h2 class="number-lg">05:32:18</h2>
+    <link
+      rel="shortcut icon"
+      href="{{ url_for('static', filename='image/logo.png') }}"
+      type="image/x-icon"
+    />
+  </head>
+
+  <body>
+    {# 시간 표시 함수 #} {% macro format_time(seconds) %} {% set seconds =
+    seconds | int %} {% set hours = seconds // 3600 %} {% set minutes = (seconds
+    % 3600) // 60 %} {% set secs = seconds % 60 %} {{ "%02d:%02d:%02d" |
+    format(hours, minutes, secs) }} {% endmacro %} {# 현재 사용자 반 코드 #} {%
+    set user_class_code = user.student_id[:3] %} {# 반 순위 찾기 #} {% set
+    class_rank_data = namespace(rank=None, class_no=None) %} {% for class_item
+    in class_rankings %} {% if class_item.class_code|string ==
+    user_class_code|string %} {% set class_rank_data.rank = class_item.rank %}
+    {% set class_rank_data.class_no = class_item.class_no %} {% endif %} {%
+    endfor %} {# 백엔드 연결 전 임시 기본값 #} {% set current_grade =
+    study_grade | default(5) | int %} {% set current_grade_point = grade_point |
+    default(1) | int %} {% set remaining_grade_seconds = next_grade_seconds |
+    default(7200) | int %}
+
+    <!-- 상단 메뉴 -->
+    <header class="topbar container" id="mainTopbar">
+      <div class="topbar-logo">
+        <img
+          src="{{ url_for('static', filename='image/logo.png') }}"
+          alt="로고"
+        />
+
+        <h1>혜윰X세콜 &lt;돼지런한 여름방학&gt;</h1>
+      </div>
+
+      <nav class="topbar-menu">
+        <a href="#home" class="topbar-link active"> 홈 </a>
+
+        <a href="#records"> 기록 </a>
+
+        <a href="#ranking"> 랭킹 </a>
+
+        <a href="#my"> MY </a>
+      </nav>
+    </header>
+
+    <!-- 일반 대시보드 -->
+    <div id="dashboardView">
+      <main class="container page-content home" id="home">
+        <section class="home-dashboard">
+          <!-- 오늘 공부시간 -->
+          <div class="card card-hero home-today">
+            <div class="card-header">
+              <div>
+                <p class="caption">오늘 공부시간</p>
+
+                <h2
+                  class="number-lg"
+                  id="todayStudyTime"
+                  data-seconds="{{ today_seconds }}"
+                >
+                  {{ format_time(today_seconds) }}
+                </h2>
+              </div>
+
+              <span class="badge badge-idle" id="timerStatusBadge">
+                대기 중
+              </span>
+            </div>
+
+            <!-- 목표 달성률 -->
+            <div class="progress progress-lg">
+              <div class="progress-header">
+                <span class="progress-title"> 목표 달성률 </span>
+
+                <span class="progress-value" id="goalPercentage">
+                  {{ goal_percentage }}%
+                </span>
+              </div>
+
+              <div class="progress-bar">
+                <div
+                  class="progress-fill"
+                  id="goalProgressFill"
+                  style="width: {{ goal_percentage }}%;"
+                ></div>
+              </div>
+            </div>
+
+            <!-- 과목 선택 -->
+            <div class="timer-subject">
+              <label for="timerSubject" class="input-label"> 공부 과목 </label>
+
+              <select id="timerSubject" class="input">
+                <option value="">공부할 과목을 선택하세요</option>
+
+                <option value="국어">국어</option>
+                <option value="수학">수학</option>
+                <option value="영어">영어</option>
+                <option value="물리">물리</option>
+                <option value="화학">화학</option>
+                <option value="생명과학">생명과학</option>
+                <option value="지구과학">지구과학</option>
+                <option value="사회">사회</option>
+                <option value="한국사">한국사</option>
+                <option value="정보">정보</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+
+            <div class="btn-group">
+              <button
+                id="startStudyButton"
+                class="btn btn-primary btn-lg"
+                type="button"
+              >
+                공부 시작
+              </button>
+
+              <button
+                id="stopStudyButton"
+                class="btn btn-outline btn-lg"
+                type="button"
+                disabled
+              >
+                공부 종료
+              </button>
+            </div>
+
+            <p id="timerMessage" class="form-message" hidden></p>
+          </div>
+
+          <!-- 오늘의 공부 기록 -->
+          <div class="card home-record" id="records">
+            <div class="card-header">
+              <div>
+                <p class="caption">오늘 저장된 기록</p>
+
+                <h3 class="title">오늘의 공부 기록</h3>
+              </div>
+            </div>
+
+            <div class="home-record-list" id="recordList">
+              {# 백엔드에서 아직 today_records를 보내지 않는다면
+              recent_records를 임시로 사용 #} {% set displayed_records =
+              today_records | default(recent_records) %} {% if displayed_records
+              %} {% for record in displayed_records %}
+              <div class="record-item" data-record-id="{{ record.id }}">
+                <div class="record-info">
+                  <strong> {{ record.subject }} </strong>
+
+                  <span class="record-date"> {{ record.study_date }} </span>
+                </div>
+
+                <div class="record-actions">
+                  <span> {{ format_time(record.duration_seconds) }} </span>
+
+                  <button
+                    class="record-delete-button"
+                    type="button"
+                    data-record-id="{{ record.id }}"
+                    aria-label="공부 기록 삭제"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+              {% endfor %} {% else %}
+              <div class="empty-message">오늘 저장된 공부 기록이 없습니다.</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- 오늘의 등급 -->
+          <div class="card home-grade">
+            <div class="card-header">
+              <div>
+                <p class="caption">공부시간 기준</p>
+
+                <h3 class="title">오늘의 등급</h3>
+              </div>
+
+              <span
+                class="grade-badge grade-{{ current_grade }}"
+                id="todayGradeBadge"
+              >
+                {{ current_grade }}등급
+              </span>
+            </div>
+
+            <div class="grade-main">
+              <strong id="todayGrade"> {{ current_grade }}등급 </strong>
+
+              <span id="todayGradePoint"> {{ current_grade_point }}점 </span>
+            </div>
+
+            <p class="grade-description" id="nextGradeText">
+              {% if current_grade == 1 %} 오늘 최고 등급을 달성했습니다. {% else
+              %} {{ current_grade - 1 }}등급까지 {{
+              format_time(remaining_grade_seconds) }} 남았습니다. {% endif %}
+            </p>
+
+            <div class="grade-rules">
+              <span>1등급 10시간 이상</span>
+              <span>2등급 7시간 이상</span>
+              <span>3등급 4시간 이상</span>
+              <span>4등급 2시간 이상</span>
+              <span>5등급 2시간 미만</span>
+            </div>
+          </div>
+
+          <!-- 누적 공부시간 -->
+          <div class="card home-total">
+            <p class="caption">전체 누적 공부시간</p>
+
+            <div class="home-total-value">
+              <span class="number" id="totalStudyHours">
+                {{ (total_seconds / 3600) | round(1) }}
+              </span>
+
+              <span class="body"> 시간 </span>
+            </div>
+          </div>
+
+          <!-- 개인 순위 -->
+          <div class="card home-personal rank-card" id="ranking">
+            <div>
+              <p class="caption">개인 평균 등급 순위</p>
+
+              <h3 class="title">전체 참가자</h3>
+            </div>
+
+            <span class="rank-value">
+              {% if personal_rank %} {{ personal_rank }}위 {% else %} - {% endif
+              %}
+            </span>
+          </div>
+
+          <!-- 반 순위 -->
+          <div class="card home-class rank-card">
+            <div>
+              <p class="caption">반 평균 등급 순위</p>
+
+              <h3 class="title">
+                {{ user.student_id[0] }}학년 {{ user.student_id[1:3] | int }}반
+              </h3>
+            </div>
+
+            <span class="rank-value">
+              {% if class_rank_data.rank %} {{ class_rank_data.rank }}위 {% else
+              %} - {% endif %}
+            </span>
+          </div>
+
+          <!-- 사용자 정보 -->
+          <div class="card home-user" id="my">
+            <div class="card-header">
+              <div>
+                <p class="caption">로그인 사용자</p>
+
+                <h3 class="title">{{ user.name }}</h3>
+
+                <p class="body">학번 {{ user.student_id }}</p>
+              </div>
+
+              <a class="btn btn-outline btn-sm" href="{{ url_for('logout') }}">
+                로그아웃
+              </a>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- 모바일 하단 메뉴 -->
+      <nav class="navbar">
+        <a href="#home" class="nav-item active">
+          <span>홈</span>
+        </a>
+
+        <a href="#records" class="nav-item">
+          <span>기록</span>
+        </a>
+
+        <a href="#ranking" class="nav-item">
+          <span>랭킹</span>
+        </a>
+
+        <a href="#my" class="nav-item">
+          <span>마이</span>
+        </a>
+      </nav>
     </div>
-    <span class="badge badge-success">공부중</span>
-  </div>
 
-  <div class="progress progress-lg">
-    <div class="progress-header">
-      <span class="progress-title">목표 달성률</span>
-      <span class="progress-value">69%</span>
-    </div>
-    <div class="progress-bar">
-      <div class="progress-fill" style="width:69%;"></div>
-    </div>
-  </div>
+    <!-- 집중 모드 -->
+    <section id="focusMode" class="focus-mode" hidden>
+      <div class="focus-mode-container">
+        <div class="focus-mode-header">
+          <div>
+            <p class="focus-mode-label">집중 모드</p>
 
-  <div class="btn-group">
-    <button class="btn btn-primary btn-lg">공부 시작</button>
-    <button class="btn btn-outline btn-lg">공부 종료</button>
-  </div>
-</div>
+            <h1 id="focusSubject">수학</h1>
+          </div>
 
-<div class="card home-record">
-  <div class="card-header">
-    <h3 class="title">오늘 공부 기록</h3>
-    <button class="btn btn-sm btn-primary">작성</button>
-  </div>
-  <div class="home-record-list">
-    <div class="record-item"><span>수학</span><span>02:10</span></div>
-    <div class="record-item"><span>영어</span><span>01:30</span></div>
-    <div class="record-item"><span>알고리즘</span><span>01:52</span></div>
-  </div>
-</div>
+          <span class="focus-running-badge" id="focusStatusBadge">
+            집중 중
+          </span>
+        </div>
 
-<div class="card home-total">
-  <p class="caption">누적 공부시간</p>
-  <div class="home-total-value">
-    <span class="number">412</span>
-    <span class="body">시간</span>
-  </div>
-</div>
+        <div class="focus-timer-area">
+          <p class="focus-timer-caption">현재 집중시간</p>
 
-<div class="card home-personal rank-card">
-  <div>
-    <p class="caption">개인 순위</p>
-    <h3 class="title">학년</h3>
-  </div>
-  <span class="rank-value">12위</span>
-</div>
+          <strong class="focus-timer" id="focusTimer"> 00:00:00 </strong>
+        </div>
 
-<div class="card home-class rank-card">
-  <div>
-    <p class="caption">반 순위</p>
-    <h3 class="title">2학년 3반</h3>
-  </div>
-  <span class="rank-value">1위</span>
-</div>
+        <div class="focus-summary">
+          <div class="focus-summary-item">
+            <span>오늘 누적</span>
 
-</section>
-</main>
+            <strong id="focusTodayTime">
+              {{ format_time(today_seconds) }}
+            </strong>
+          </div>
 
-<nav class="navbar">
-  <a class="nav-item active"><span>홈</span></a>
-  <a class="nav-item"><span>기록</span></a>
-  <a class="nav-item"><span>랭킹</span></a>
-  <a class="nav-item"><span>마이</span></a>
-</nav>
-<script src="{{ url_for('static', filename='js/study.js') }}"></script>
-</body>
+          <div class="focus-summary-item">
+            <span>현재 등급</span>
+
+            <strong id="focusGrade"> {{ current_grade }}등급 </strong>
+          </div>
+
+          <div class="focus-summary-item">
+            <span>목표 달성률</span>
+
+            <strong id="focusGoalPercentage"> {{ goal_percentage }}% </strong>
+          </div>
+        </div>
+
+        <div class="focus-grade-progress">
+          <p id="focusNextGradeText">
+            {% if current_grade == 1 %} 오늘 최고 등급을 달성했습니다. {% else
+            %} {{ current_grade - 1 }}등급까지 {{
+            format_time(remaining_grade_seconds) }} 남았습니다. {% endif %}
+          </p>
+        </div>
+
+        <p id="focusInterruptionMessage" class="focus-warning" hidden>
+          화면을 벗어나 집중시간이 일시정지되었습니다. 다시 시작 버튼을 눌러야
+          시간이 기록됩니다.
+        </p>
+
+        <div class="focus-button-group">
+          <button
+            id="resumeFocusButton"
+            class="btn btn-primary btn-lg"
+            type="button"
+            hidden
+          >
+            집중 다시 시작
+          </button>
+
+          <button
+            id="focusStopButton"
+            class="btn btn-danger btn-lg"
+            type="button"
+          >
+            공부 종료
+          </button>
+        </div>
+
+        <p class="focus-notice">
+          다른 탭으로 이동하거나 브라우저를 최소화하면 집중시간이
+          일시정지됩니다.
+        </p>
+      </div>
+    </section>
+
+    <script>
+      window.STUDY_PAGE_DATA = {
+        todaySeconds: {{ today_seconds | int }},
+        goalSeconds: {{ goal_seconds | int }},
+        goalPercentage: {{ goal_percentage | int }},
+        studyGrade: {{ current_grade }},
+        gradePoint: {{ current_grade_point }},
+        nextGradeSeconds: {{ remaining_grade_seconds }}
+      };
+    </script>
+
+    <script src="{{ url_for('static', filename='js/study.js') }}"></script>
+  </body>
 </html>

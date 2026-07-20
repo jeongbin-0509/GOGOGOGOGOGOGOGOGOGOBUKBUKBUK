@@ -1,5 +1,62 @@
 from extensions import supabase
+from datetime import date
 
+
+def calculate_study_grade(total_seconds):
+    if total_seconds >= 10 * 3600:
+        return 1, 5
+
+    if total_seconds >= 7 * 3600:
+        return 2, 4
+
+    if total_seconds >= 4 * 3600:
+        return 3, 3
+
+    if total_seconds >= 2 * 3600:
+        return 4, 2
+
+    return 5, 1
+
+
+def update_daily_study_stats(supabase, user_id, study_date=None):
+    if study_date is None:
+        study_date = date.today().isoformat()
+
+    records = (
+        supabase.table("study_records")
+        .select("duration_seconds")
+        .eq("user_id", user_id)
+        .eq("study_date", study_date)
+        .execute()
+    )
+
+    total_seconds = sum(
+        int(record.get("duration_seconds", 0))
+        for record in records.data
+    )
+
+    study_grade, grade_point = calculate_study_grade(total_seconds)
+
+    (
+        supabase.table("daily_study_stats")
+        .upsert(
+            {
+                "user_id": user_id,
+                "study_date": study_date,
+                "total_seconds": total_seconds,
+                "study_grade": study_grade,
+                "grade_point": grade_point,
+            },
+            on_conflict="user_id,study_date",
+        )
+        .execute()
+    )
+
+    return {
+        "total_seconds": total_seconds,
+        "study_grade": study_grade,
+        "grade_point": grade_point,
+    }
 
 def get_study_total(user_id, study_date=None):
     query = (
