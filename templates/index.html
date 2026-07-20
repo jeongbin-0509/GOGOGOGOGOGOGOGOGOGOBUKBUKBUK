@@ -1,108 +1,106 @@
-{% extends "base.html" %}
-{% block body %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>혜윰X세콜 &lt;돼지런한 여름방학&gt;</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/style.css">
+  <link rel="shortcut icon" href="../image/logo.png" type="image/x-icon">
+</head>
+<body>
+
 <header class="topbar container">
   <div class="topbar-logo">
-    <img src="{{ url_for('static', filename='image/logo.svg') }}" alt="로고">
+    <img src="../image/logo.png" alt="로고">
     <h1>혜윰X세콜 &lt;돼지런한 여름방학&gt;</h1>
   </div>
+
   <nav class="topbar-menu">
-    <a href="{{ url_for('home') }}" class="topbar-link active">홈</a>
-    <a href="#records">기록</a>
-    <a href="#ranking">랭킹</a>
-    <a href="#stats">통계</a>
-    <button class="link-button" id="goalButton" type="button">목표</button>
-    <form method="post" action="{{ url_for('logout') }}"><button class="link-button" type="submit">로그아웃</button></form>
+    <a href="#" class="topbar-link active">홈</a>
+    <a href="#">기록</a>
+    <a href="#">랭킹</a>
+    <a href="#">통계</a>
+    <a href="#">MY</a>
   </nav>
 </header>
 
 <main class="container page-content home">
-  <section class="welcome-row">
-    <div><strong>{{ user.name }}</strong>님, 오늘도 돼지런하게 공부해 봅시다.</div>
-    <span>{{ user.grade }}학년 {{ user.class_no }}반 {{ user.student_no }}번</span>
-  </section>
 
-  <section class="home-dashboard">
-    <div class="card card-hero home-today">
-      <div class="card-header">
-        <div>
-          <p class="caption">오늘 공부시간</p>
-          <h2 class="number-lg" id="timerDisplay" data-base-seconds="{{ today_seconds }}">{{ today_hms }}</h2>
-        </div>
-        <span class="badge badge-idle" id="studyStatus">대기중</span>
-      </div>
+<section class="home-dashboard">
 
-      <div class="progress progress-lg">
-        <div class="progress-header">
-          <span class="progress-title">목표 달성률</span>
-          <span class="progress-value" id="progressValue">{{ progress }}%</span>
-        </div>
-        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:{{ progress }}%;"></div></div>
-      </div>
-
-      <div class="timer-notice" id="timerNotice">공부 시작 후 다른 탭이나 앱으로 이동하면 타이머가 자동 중단됩니다.</div>
-      <div class="btn-group">
-        <button class="btn btn-primary btn-lg" id="startButton" type="button">공부 시작</button>
-        <button class="btn btn-outline btn-lg" id="stopButton" type="button" disabled>공부 종료</button>
-      </div>
+<div class="card card-hero home-today">
+  <div class="card-header">
+    <div>
+      <p class="caption">오늘 공부시간</p>
+      <h2 class="number-lg">05:32:18</h2>
     </div>
+    <span class="badge badge-success">공부중</span>
+  </div>
 
-    <div class="card home-record" id="records">
-      <div class="card-header">
-        <h3 class="title">오늘 공부 기록</h3>
-        <button class="btn btn-sm btn-primary" id="manualRecordButton" type="button">작성</button>
-      </div>
-      <div class="home-record-list">
-        {% for record in records %}
-          <div class="record-item"><span>{{ record.subject }}</span><span>{{ record.duration }}</span></div>
-        {% else %}
-          <div class="empty-record">아직 저장된 기록이 없습니다.</div>
-        {% endfor %}
-      </div>
+  <div class="progress progress-lg">
+    <div class="progress-header">
+      <span class="progress-title">목표 달성률</span>
+      <span class="progress-value">69%</span>
     </div>
+    <div class="progress-bar">
+      <div class="progress-fill" style="width:69%;"></div>
+    </div>
+  </div>
 
-    <div class="card home-total" id="stats">
-      <p class="caption">누적 공부시간</p>
-      <div class="home-total-value"><span class="number">{{ total_hours }}</span><span class="body">시간</span></div>
-    </div>
+  <div class="btn-group">
+    <button class="btn btn-primary btn-lg">공부 시작</button>
+    <button class="btn btn-outline btn-lg">공부 종료</button>
+  </div>
+</div>
 
-    <div class="card home-personal rank-card" id="ranking">
-      <div><p class="caption">개인 순위</p><h3 class="title">전체 참가자</h3></div>
-      <span class="rank-value">{{ personal_rank }}위</span>
-    </div>
+<div class="card home-record">
+  <div class="card-header">
+    <h3 class="title">오늘 공부 기록</h3>
+    <button class="btn btn-sm btn-primary">작성</button>
+  </div>
+  <div class="home-record-list">
+    <div class="record-item"><span>수학</span><span>02:10</span></div>
+    <div class="record-item"><span>영어</span><span>01:30</span></div>
+    <div class="record-item"><span>알고리즘</span><span>01:52</span></div>
+  </div>
+</div>
 
-    <div class="card home-class rank-card">
-      <div><p class="caption">반 순위</p><h3 class="title">{{ user.grade }}학년 {{ user.class_no }}반</h3></div>
-      <span class="rank-value">{{ class_rank }}위</span>
-    </div>
-  </section>
+<div class="card home-total">
+  <p class="caption">누적 공부시간</p>
+  <div class="home-total-value">
+    <span class="number">412</span>
+    <span class="body">시간</span>
+  </div>
+</div>
+
+<div class="card home-personal rank-card">
+  <div>
+    <p class="caption">개인 순위</p>
+    <h3 class="title">학년</h3>
+  </div>
+  <span class="rank-value">12위</span>
+</div>
+
+<div class="card home-class rank-card">
+  <div>
+    <p class="caption">반 순위</p>
+    <h3 class="title">2학년 3반</h3>
+  </div>
+  <span class="rank-value">1위</span>
+</div>
+
+</section>
 </main>
 
 <nav class="navbar">
-  <a class="nav-item active" href="{{ url_for('home') }}"><span>홈</span></a>
-  <a class="nav-item" href="#records"><span>기록</span></a>
-  <a class="nav-item" href="#ranking"><span>랭킹</span></a>
-  <button class="nav-item nav-button" id="mobileGoalButton" type="button"><span>목표</span></button>
+  <a class="nav-item active"><span>홈</span></a>
+  <a class="nav-item"><span>기록</span></a>
+  <a class="nav-item"><span>랭킹</span></a>
+  <a class="nav-item"><span>마이</span></a>
 </nav>
-
-<div class="modal-backdrop hidden" id="modalBackdrop">
-  <div class="modal card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <h3 id="modalTitle">공부 기록 저장</h3>
-    <div id="modalBody"></div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" id="modalCancel" type="button">취소</button>
-      <button class="btn btn-primary" id="modalConfirm" type="button">저장</button>
-    </div>
-  </div>
-</div>
-{% endblock %}
-{% block scripts %}
-<script>
-  window.STUDY_CONFIG = {
-    recordUrl: {{ url_for('create_study_record')|tojson }},
-    manualRecordUrl: {{ url_for('create_manual_record')|tojson }},
-    goalUrl: {{ url_for('update_goal')|tojson }},
-    goalSeconds: {{ user.daily_goal_seconds }}
-  };
-</script>
-<script src="{{ url_for('static', filename='js/study.js') }}" defer></script>
-{% endblock %}
+<script src="{{ url_for('static', filename='js/study.js') }}"></script>
+</body>
+</html>
