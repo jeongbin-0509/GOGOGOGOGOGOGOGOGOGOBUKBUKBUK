@@ -1,204 +1,1020 @@
-(() => {
-  const display = document.querySelector('#timerDisplay');
-  if (!display) return;
+document.addEventListener("DOMContentLoaded", () => {
+    const config =
+        window.STUDY_CONFIG || {};
 
-  const startButton = document.querySelector('#startButton');
-  const stopButton = document.querySelector('#stopButton');
-  const status = document.querySelector('#studyStatus');
-  const notice = document.querySelector('#timerNotice');
-  const progressValue = document.querySelector('#progressValue');
-  const progressFill = document.querySelector('#progressFill');
-  const manualButton = document.querySelector('#manualRecordButton');
-  const goalButton = document.querySelector('#goalButton');
-  const mobileGoalButton = document.querySelector('#mobileGoalButton');
-  const backdrop = document.querySelector('#modalBackdrop');
-  const modalTitle = document.querySelector('#modalTitle');
-  const modalBody = document.querySelector('#modalBody');
-  const modalCancel = document.querySelector('#modalCancel');
-  const modalConfirm = document.querySelector('#modalConfirm');
+    const timerDisplay =
+        document.getElementById(
+            "timerDisplay"
+        );
 
-  const baseSeconds = Number(display.dataset.baseSeconds || 0);
-  let sessionSeconds = 0;
-  let state = 'idle';
-  let startedAt = null;
-  let intervalId = null;
-  let lastTick = null;
-  let modalAction = null;
+    const startButton =
+        document.getElementById(
+            "startButton"
+        );
 
-  const formatHms = (seconds) => {
-    const safe = Math.max(0, Math.floor(seconds));
-    const hours = String(Math.floor(safe / 3600)).padStart(2, '0');
-    const minutes = String(Math.floor((safe % 3600) / 60)).padStart(2, '0');
-    const secs = String(safe % 60).padStart(2, '0');
-    return `${hours}:${minutes}:${secs}`;
-  };
+    const stopButton =
+        document.getElementById(
+            "stopButton"
+        );
 
-  const updateDisplay = () => {
-    const total = baseSeconds + sessionSeconds;
-    display.textContent = formatHms(total);
-    const goal = Number(window.STUDY_CONFIG.goalSeconds || 28800);
-    const percentage = Math.min(100, Math.round(total / goal * 100));
-    progressValue.textContent = `${percentage}%`;
-    progressFill.style.width = `${percentage}%`;
-  };
+    const statusElement =
+        document.getElementById(
+            "studyStatus"
+        );
 
-  const setState = (next) => {
-    state = next;
-    status.className = 'badge';
-    if (next === 'running') {
-      status.textContent = '공부중';
-      status.classList.add('badge-success');
-      startButton.textContent = '공부 중';
-      startButton.disabled = true;
-      stopButton.disabled = false;
-      notice.textContent = '현재 집중 시간이 기록되고 있습니다.';
-    } else if (next === 'paused') {
-      status.textContent = '집중 중단';
-      status.classList.add('badge-warning');
-      startButton.textContent = '공부 계속하기';
-      startButton.disabled = false;
-      stopButton.disabled = false;
-      notice.textContent = '탭을 벗어나 타이머가 멈췄습니다. 계속하기를 눌러 재개하세요.';
-    } else {
-      status.textContent = '대기중';
-      status.classList.add('badge-idle');
-      startButton.textContent = '공부 시작';
-      startButton.disabled = false;
-      stopButton.disabled = true;
-      notice.textContent = '공부 시작 후 다른 탭이나 앱으로 이동하면 타이머가 자동 중단됩니다.';
-    }
-  };
+    const noticeElement =
+        document.getElementById(
+            "timerNotice"
+        );
 
-  const tick = () => {
-    const now = Date.now();
-    if (lastTick !== null) sessionSeconds += Math.max(0, Math.floor((now - lastTick) / 1000));
-    lastTick = now;
-    updateDisplay();
-  };
+    const progressValue =
+        document.getElementById(
+            "progressValue"
+        );
 
-  const startTimer = () => {
-    if (state === 'idle') {
-      startedAt = new Date().toISOString();
-      sessionSeconds = 0;
-    }
-    lastTick = Date.now();
-    clearInterval(intervalId);
-    intervalId = setInterval(tick, 1000);
-    setState('running');
-  };
+    const progressFill =
+        document.getElementById(
+            "progressFill"
+        );
 
-  const pauseTimer = () => {
-    if (state !== 'running') return;
-    tick();
-    clearInterval(intervalId);
-    intervalId = null;
-    lastTick = null;
-    setState('paused');
-  };
+    const manualRecordButton =
+        document.getElementById(
+            "manualRecordButton"
+        );
 
-  const openModal = ({ title, body, confirmText = '저장', action }) => {
-    modalTitle.textContent = title;
-    modalBody.innerHTML = body;
-    modalConfirm.textContent = confirmText;
-    modalAction = action;
-    backdrop.classList.remove('hidden');
-    modalBody.querySelector('input')?.focus();
-  };
+    const goalButton =
+        document.getElementById(
+            "goalButton"
+        );
 
-  const closeModal = () => {
-    backdrop.classList.add('hidden');
-    modalAction = null;
-  };
+    const mobileGoalButton =
+        document.getElementById(
+            "mobileGoalButton"
+        );
 
-  const postJson = async (url, data) => {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    });
-    const result = await response.json().catch(() => ({ok: false, message: '서버 응답을 읽지 못했습니다.'}));
-    if (!response.ok || !result.ok) throw new Error(result.message || '저장에 실패했습니다.');
-    return result;
-  };
+    const modalBackdrop =
+        document.getElementById(
+            "modalBackdrop"
+        );
 
-  startButton.addEventListener('click', startTimer);
+    const modalTitle =
+        document.getElementById(
+            "modalTitle"
+        );
 
-  stopButton.addEventListener('click', () => {
-    if (state === 'running') pauseTimer();
-    if (sessionSeconds < 10) {
-      alert('10초 이상 공부한 뒤 종료해 주세요.');
-      return;
-    }
-    openModal({
-      title: '공부 기록 저장',
-      body: `<label class="input-label" for="subjectInput">공부한 과목</label>
-             <input class="input" id="subjectInput" maxlength="30" placeholder="예: 수학">
-             <p class="modal-summary">이번 집중 시간: <strong>${formatHms(sessionSeconds)}</strong></p>`,
-      action: async () => {
-        const subject = document.querySelector('#subjectInput').value.trim();
-        if (!subject) throw new Error('공부한 과목을 입력해 주세요.');
-        await postJson(window.STUDY_CONFIG.recordUrl, {
-          subject,
-          duration_seconds: sessionSeconds,
-          started_at: startedAt,
-          ended_at: new Date().toISOString()
+    const modalBody =
+        document.getElementById(
+            "modalBody"
+        );
+
+    const modalCancel =
+        document.getElementById(
+            "modalCancel"
+        );
+
+    const modalConfirm =
+        document.getElementById(
+            "modalConfirm"
+        );
+
+    const baseSeconds = Number(
+        timerDisplay?.dataset.baseSeconds
+        || config.todaySeconds
+        || 0
+    );
+
+    let sessionSeconds = 0;
+    let timerState = "idle";
+
+    let startedAt = null;
+    let timerInterval = null;
+    let previousTickTime = null;
+
+    let modalSubmitAction = null;
+
+
+    const formatTime = (seconds) => {
+        const safeSeconds = Math.max(
+            0,
+            Math.floor(
+                Number(seconds) || 0
+            )
+        );
+
+        const hours = String(
+            Math.floor(
+                safeSeconds / 3600
+            )
+        ).padStart(2, "0");
+
+        const minutes = String(
+            Math.floor(
+                (safeSeconds % 3600) / 60
+            )
+        ).padStart(2, "0");
+
+        const secs = String(
+            safeSeconds % 60
+        ).padStart(2, "0");
+
+        return `${hours}:${minutes}:${secs}`;
+    };
+
+
+    const readJsonResponse = async (
+        response
+    ) => {
+        const contentType =
+            response.headers.get(
+                "content-type"
+            ) || "";
+
+        if (
+            !contentType.includes(
+                "application/json"
+            )
+        ) {
+            const text =
+                await response.text();
+
+            console.error(
+                "JSON이 아닌 서버 응답:",
+                response.status,
+                text
+            );
+
+            throw new Error(
+                `서버 응답 오류 (${response.status})`
+            );
+        }
+
+        return response.json();
+    };
+
+
+    const postJson = async (
+        url,
+        body
+    ) => {
+        const response = await fetch(
+            url,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                credentials:
+                    "same-origin",
+
+                body: JSON.stringify(body)
+            }
+        );
+
+        const result =
+            await readJsonResponse(
+                response
+            );
+
+        if (
+            response.status === 401
+            && result.redirect
+        ) {
+            window.location.href =
+                result.redirect;
+
+            throw new Error(
+                "로그인이 필요합니다."
+            );
+        }
+
+        if (
+            !response.ok
+            || !result.success
+        ) {
+            throw new Error(
+                result.message
+                || "요청 처리에 실패했습니다."
+            );
+        }
+
+        return result;
+    };
+
+
+    const deleteJson = async (url) => {
+        const response = await fetch(
+            url,
+            {
+                method: "DELETE",
+
+                credentials:
+                    "same-origin"
+            }
+        );
+
+        const result =
+            await readJsonResponse(
+                response
+            );
+
+        if (
+            !response.ok
+            || !result.success
+        ) {
+            throw new Error(
+                result.message
+                || "삭제에 실패했습니다."
+            );
+        }
+
+        return result;
+    };
+
+
+    const updateTimerDisplay = () => {
+        if (!timerDisplay) {
+            return;
+        }
+
+        const totalSeconds =
+            baseSeconds
+            + sessionSeconds;
+
+        timerDisplay.textContent =
+            formatTime(totalSeconds);
+
+        const goalSeconds = Number(
+            config.goalSeconds || 28800
+        );
+
+        const progress =
+            goalSeconds > 0
+                ? Math.min(
+                    100,
+                    Math.round(
+                        totalSeconds
+                        / goalSeconds
+                        * 100
+                    )
+                )
+                : 0;
+
+        if (progressValue) {
+            progressValue.textContent =
+                `${progress}%`;
+        }
+
+        if (progressFill) {
+            progressFill.style.width =
+                `${progress}%`;
+        }
+    };
+
+
+    const updateTimerState = (
+        nextState
+    ) => {
+        timerState = nextState;
+
+        if (statusElement) {
+            statusElement.className =
+                "badge";
+        }
+
+        if (nextState === "running") {
+            if (statusElement) {
+                statusElement.textContent =
+                    "공부중";
+
+                statusElement.classList.add(
+                    "badge-success"
+                );
+            }
+
+            if (startButton) {
+                startButton.disabled =
+                    true;
+
+                startButton.textContent =
+                    "공부 중";
+            }
+
+            if (stopButton) {
+                stopButton.disabled =
+                    false;
+            }
+
+            if (noticeElement) {
+                noticeElement.textContent =
+                    "현재 집중 시간이 기록되고 있습니다.";
+            }
+
+            return;
+        }
+
+        if (nextState === "paused") {
+            if (statusElement) {
+                statusElement.textContent =
+                    "일시정지";
+
+                statusElement.classList.add(
+                    "badge-warning"
+                );
+            }
+
+            if (startButton) {
+                startButton.disabled =
+                    false;
+
+                startButton.textContent =
+                    "공부 계속하기";
+            }
+
+            if (stopButton) {
+                stopButton.disabled =
+                    false;
+            }
+
+            if (noticeElement) {
+                noticeElement.textContent =
+                    "화면을 벗어나 타이머가 일시정지되었습니다.";
+            }
+
+            return;
+        }
+
+        if (statusElement) {
+            statusElement.textContent =
+                "대기중";
+
+            statusElement.classList.add(
+                "badge-idle"
+            );
+        }
+
+        if (startButton) {
+            startButton.disabled =
+                false;
+
+            startButton.textContent =
+                "공부 시작";
+        }
+
+        if (stopButton) {
+            stopButton.disabled =
+                true;
+        }
+
+        if (noticeElement) {
+            noticeElement.textContent =
+                "공부 시작 버튼을 눌러 타이머를 시작하세요.";
+        }
+    };
+
+
+    const updateElapsedTime = () => {
+        if (
+            timerState !== "running"
+            || previousTickTime === null
+        ) {
+            return;
+        }
+
+        const currentTime =
+            Date.now();
+
+        const elapsedMilliseconds =
+            currentTime
+            - previousTickTime;
+
+        if (
+            elapsedMilliseconds >= 1000
+        ) {
+            const elapsedSeconds =
+                Math.floor(
+                    elapsedMilliseconds
+                    / 1000
+                );
+
+            sessionSeconds +=
+                elapsedSeconds;
+
+            previousTickTime +=
+                elapsedSeconds * 1000;
+
+            updateTimerDisplay();
+        }
+    };
+
+
+    const startTimer = () => {
+        if (
+            timerState === "running"
+        ) {
+            return;
+        }
+
+        if (
+            timerState === "idle"
+        ) {
+            sessionSeconds = 0;
+
+            startedAt =
+                new Date()
+                    .toISOString();
+        }
+
+        previousTickTime =
+            Date.now();
+
+        if (
+            timerInterval !== null
+        ) {
+            clearInterval(
+                timerInterval
+            );
+        }
+
+        timerInterval =
+            window.setInterval(
+                updateElapsedTime,
+                250
+            );
+
+        updateTimerState(
+            "running"
+        );
+    };
+
+
+    const pauseTimer = () => {
+        if (
+            timerState !== "running"
+        ) {
+            return;
+        }
+
+        updateElapsedTime();
+
+        if (
+            timerInterval !== null
+        ) {
+            clearInterval(
+                timerInterval
+            );
+        }
+
+        timerInterval = null;
+        previousTickTime = null;
+
+        updateTimerState(
+            "paused"
+        );
+    };
+
+
+    const resetTimer = () => {
+        if (
+            timerInterval !== null
+        ) {
+            clearInterval(
+                timerInterval
+            );
+        }
+
+        timerInterval = null;
+        previousTickTime = null;
+        sessionSeconds = 0;
+        startedAt = null;
+
+        updateTimerState(
+            "idle"
+        );
+
+        updateTimerDisplay();
+    };
+
+
+    const openModal = ({
+        title,
+        body,
+        confirmText = "저장",
+        onConfirm
+    }) => {
+        if (
+            !modalBackdrop
+            || !modalTitle
+            || !modalBody
+            || !modalConfirm
+        ) {
+            alert(
+                "모달 HTML 요소를 찾을 수 없습니다."
+            );
+            return;
+        }
+
+        modalTitle.textContent =
+            title;
+
+        modalBody.innerHTML =
+            body;
+
+        modalConfirm.textContent =
+            confirmText;
+
+        modalConfirm.disabled =
+            false;
+
+        modalSubmitAction =
+            onConfirm;
+
+        modalBackdrop.classList.remove(
+            "hidden"
+        );
+
+        modalBody
+            .querySelector(
+                "input, select, textarea"
+            )
+            ?.focus();
+    };
+
+
+    const closeModal = () => {
+        if (!modalBackdrop) {
+            return;
+        }
+
+        modalBackdrop.classList.add(
+            "hidden"
+        );
+
+        modalSubmitAction = null;
+    };
+
+
+    const openTimerRecordModal =
+        () => {
+            if (
+                timerState ===
+                "running"
+            ) {
+                pauseTimer();
+            }
+
+            if (
+                sessionSeconds < 10
+            ) {
+                alert(
+                    "10초 이상 공부한 뒤 종료해 주세요."
+                );
+                return;
+            }
+
+            openModal({
+                title:
+                    "공부 기록 저장",
+
+                confirmText:
+                    "기록 저장",
+
+                body: `
+                    <label for="recordSubject">
+                        공부한 과목
+                    </label>
+
+                    <input
+                        id="recordSubject"
+                        type="text"
+                        maxlength="30"
+                        autocomplete="off"
+                        placeholder="예: 수학"
+                    >
+
+                    <p>
+                        이번 공부 시간:
+                        <strong>
+                            ${formatTime(
+                                sessionSeconds
+                            )}
+                        </strong>
+                    </p>
+                `,
+
+                onConfirm:
+                    async () => {
+                        const subject =
+                            document
+                                .getElementById(
+                                    "recordSubject"
+                                )
+                                ?.value
+                                .trim()
+                            || "";
+
+                        if (!subject) {
+                            throw new Error(
+                                "공부한 과목을 입력해 주세요."
+                            );
+                        }
+
+                        await postJson(
+                            config.recordUrl
+                            || "/api/study-records",
+                            {
+                                subject,
+                                duration_seconds:
+                                    sessionSeconds,
+                                started_at:
+                                    startedAt,
+                                ended_at:
+                                    new Date()
+                                        .toISOString()
+                            }
+                        );
+
+                        resetTimer();
+                        closeModal();
+
+                        window.location.reload();
+                    }
+            });
+        };
+
+
+    const openManualRecordModal =
+        () => {
+            const today =
+                new Date()
+                    .toISOString()
+                    .slice(0, 10);
+
+            openModal({
+                title:
+                    "공부 기록 직접 작성",
+
+                confirmText:
+                    "기록 저장",
+
+                body: `
+                    <label for="manualSubject">
+                        공부한 과목
+                    </label>
+
+                    <input
+                        id="manualSubject"
+                        type="text"
+                        maxlength="30"
+                        placeholder="예: 영어"
+                    >
+
+                    <label for="manualMinutes">
+                        공부 시간(분)
+                    </label>
+
+                    <input
+                        id="manualMinutes"
+                        type="number"
+                        min="1"
+                        max="960"
+                        step="1"
+                        placeholder="예: 90"
+                    >
+
+                    <label for="manualDate">
+                        공부 날짜
+                    </label>
+
+                    <input
+                        id="manualDate"
+                        type="date"
+                        value="${today}"
+                    >
+                `,
+
+                onConfirm:
+                    async () => {
+                        const subject =
+                            document
+                                .getElementById(
+                                    "manualSubject"
+                                )
+                                ?.value
+                                .trim()
+                            || "";
+
+                        const minutes =
+                            Number(
+                                document
+                                    .getElementById(
+                                        "manualMinutes"
+                                    )
+                                    ?.value
+                            );
+
+                        const studyDate =
+                            document
+                                .getElementById(
+                                    "manualDate"
+                                )
+                                ?.value
+                            || today;
+
+                        if (!subject) {
+                            throw new Error(
+                                "공부한 과목을 입력해 주세요."
+                            );
+                        }
+
+                        if (
+                            !Number.isInteger(
+                                minutes
+                            )
+                            || minutes < 1
+                            || minutes > 960
+                        ) {
+                            throw new Error(
+                                "공부 시간은 1분 이상 960분 이하로 입력해 주세요."
+                            );
+                        }
+
+                        await postJson(
+                            config.manualRecordUrl
+                            || "/api/study-records/manual",
+                            {
+                                subject,
+                                minutes,
+                                study_date:
+                                    studyDate
+                            }
+                        );
+
+                        closeModal();
+
+                        window.location.reload();
+                    }
+            });
+        };
+
+
+    const openGoalModal = () => {
+        const currentGoalSeconds =
+            Number(
+                config.goalSeconds
+                || 28800
+            );
+
+        const currentGoalHours =
+            currentGoalSeconds / 3600;
+
+        openModal({
+            title:
+                "하루 목표시간 설정",
+
+            confirmText:
+                "목표 저장",
+
+            body: `
+                <label for="goalHours">
+                    하루 목표시간
+                </label>
+
+                <input
+                    id="goalHours"
+                    type="number"
+                    min="0.5"
+                    max="16"
+                    step="0.5"
+                    value="${currentGoalHours}"
+                >
+
+                <p>
+                    0.5시간 단위로 설정할 수 있습니다.
+                </p>
+            `,
+
+            onConfirm:
+                async () => {
+                    const hours =
+                        Number(
+                            document
+                                .getElementById(
+                                    "goalHours"
+                                )
+                                ?.value
+                        );
+
+                    if (
+                        !Number.isFinite(
+                            hours
+                        )
+                        || hours < 0.5
+                        || hours > 16
+                    ) {
+                        throw new Error(
+                            "목표시간은 0.5시간 이상 16시간 이하로 입력해 주세요."
+                        );
+                    }
+
+                    await postJson(
+                        config.goalUrl
+                        || "/api/goal",
+                        {
+                            hours
+                        }
+                    );
+
+                    closeModal();
+
+                    window.location.reload();
+                }
         });
-        location.reload();
-      }
-    });
-  });
+    };
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) pauseTimer();
-  });
-  window.addEventListener('blur', pauseTimer);
 
-  manualButton.addEventListener('click', () => {
-    openModal({
-      title: '공부 기록 직접 작성',
-      body: `<label class="input-label" for="manualSubject">과목</label>
-             <input class="input" id="manualSubject" maxlength="30" placeholder="예: 영어">
-             <label class="input-label modal-label" for="manualMinutes">공부 시간(분)</label>
-             <input class="input" id="manualMinutes" type="number" min="1" max="960" placeholder="예: 90">`,
-      action: async () => {
-        const subject = document.querySelector('#manualSubject').value.trim();
-        const minutes = Number(document.querySelector('#manualMinutes').value);
-        await postJson(window.STUDY_CONFIG.manualRecordUrl, {subject, minutes});
-        location.reload();
-      }
-    });
-  });
+    startButton?.addEventListener(
+        "click",
+        startTimer
+    );
 
-  const openGoalModal = () => {
-    const current = Number(window.STUDY_CONFIG.goalSeconds || 28800) / 3600;
-    openModal({
-      title: '하루 목표 시간 설정',
-      body: `<label class="input-label" for="goalHours">목표 시간(시간)</label>
-             <input class="input" id="goalHours" type="number" min="0.5" max="16" step="0.5" value="${current}">`,
-      action: async () => {
-        const hours = Number(document.querySelector('#goalHours').value);
-        await postJson(window.STUDY_CONFIG.goalUrl, {hours});
-        location.reload();
-      }
-    });
-  };
+    stopButton?.addEventListener(
+        "click",
+        openTimerRecordModal
+    );
 
-  goalButton?.addEventListener('click', openGoalModal);
-  mobileGoalButton?.addEventListener('click', openGoalModal);
-  modalCancel.addEventListener('click', closeModal);
-  backdrop.addEventListener('click', (event) => { if (event.target === backdrop) closeModal(); });
-  modalConfirm.addEventListener('click', async () => {
-    if (!modalAction) return;
-    modalConfirm.disabled = true;
-    try {
-      await modalAction();
-    } catch (error) {
-      alert(error.message);
-    } finally {
-      modalConfirm.disabled = false;
-    }
-  });
+    manualRecordButton?.addEventListener(
+        "click",
+        openManualRecordModal
+    );
 
-  updateDisplay();
-  setState('idle');
-})();
+    goalButton?.addEventListener(
+        "click",
+        openGoalModal
+    );
+
+    mobileGoalButton?.addEventListener(
+        "click",
+        openGoalModal
+    );
+
+
+    document.addEventListener(
+        "visibilitychange",
+        () => {
+            if (
+                document.hidden
+            ) {
+                pauseTimer();
+            }
+        }
+    );
+
+
+    window.addEventListener(
+        "blur",
+        () => {
+            if (
+                timerState
+                === "running"
+            ) {
+                pauseTimer();
+            }
+        }
+    );
+
+
+    modalCancel?.addEventListener(
+        "click",
+        closeModal
+    );
+
+
+    modalBackdrop?.addEventListener(
+        "click",
+        (event) => {
+            if (
+                event.target
+                === modalBackdrop
+            ) {
+                closeModal();
+            }
+        }
+    );
+
+
+    modalConfirm?.addEventListener(
+        "click",
+        async () => {
+            if (
+                !modalSubmitAction
+            ) {
+                return;
+            }
+
+            const originalText =
+                modalConfirm.textContent;
+
+            modalConfirm.disabled =
+                true;
+
+            modalConfirm.textContent =
+                "처리 중...";
+
+            try {
+                await modalSubmitAction();
+
+            } catch (error) {
+                console.error(
+                    "처리 오류:",
+                    error
+                );
+
+                alert(
+                    error.message
+                    || "처리 중 오류가 발생했습니다."
+                );
+
+            } finally {
+                modalConfirm.disabled =
+                    false;
+
+                modalConfirm.textContent =
+                    originalText;
+            }
+        }
+    );
+
+
+    document
+        .querySelectorAll(
+            "[data-delete-record]"
+        )
+        .forEach((button) => {
+            button.addEventListener(
+                "click",
+                async () => {
+                    const recordId =
+                        button.dataset
+                            .deleteRecord;
+
+                    if (!recordId) {
+                        return;
+                    }
+
+                    const confirmed =
+                        window.confirm(
+                            "이 공부 기록을 삭제할까요?"
+                        );
+
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    button.disabled =
+                        true;
+
+                    try {
+                        await deleteJson(
+                            `/api/study-records/${recordId}`
+                        );
+
+                        window.location.reload();
+
+                    } catch (error) {
+                        alert(
+                            error.message
+                            || "삭제 중 오류가 발생했습니다."
+                        );
+
+                        button.disabled =
+                            false;
+                    }
+                }
+            );
+        });
+
+
+    window.addEventListener(
+        "beforeunload",
+        (event) => {
+            if (
+                timerState === "running"
+                || timerState === "paused"
+            ) {
+                event.preventDefault();
+
+                event.returnValue = "";
+            }
+        }
+    );
+
+
+    updateTimerDisplay();
+
+    updateTimerState(
+        "idle"
+    );
+});
