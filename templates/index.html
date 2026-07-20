@@ -2,21 +2,16 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
     <title>혜윰X세콜 &lt;돼지런한 여름방학&gt;</title>
-
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
     />
-
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='css/style.css') }}"
     />
-
     <link
       rel="shortcut icon"
       href="{{ url_for('static', filename='image/logo.png') }}"
@@ -106,22 +101,33 @@
 
             <!-- 과목 선택 -->
             <div class="timer-subject">
-              <label for="timerSubject" class="input-label"> 공부 과목 </label>
-
               <select id="timerSubject" class="input">
-                <option value="">공부할 과목을 선택하세요</option>
+                <!-- 과목 선택 -->
+                <!-- 과목 선택 -->
+                <div class="study-subject-section">
+                  <div class="study-section-header">
+                    <div>
+                      <p class="study-section-label">공부 과목</p>
+                      <strong id="selectedSubjectText"
+                        >과목을 선택해 주세요</strong
+                      >
+                    </div>
 
-                <option value="국어">국어</option>
-                <option value="수학">수학</option>
-                <option value="영어">영어</option>
-                <option value="물리">물리</option>
-                <option value="화학">화학</option>
-                <option value="생명과학">생명과학</option>
-                <option value="지구과학">지구과학</option>
-                <option value="사회">사회</option>
-                <option value="한국사">한국사</option>
-                <option value="정보">정보</option>
-                <option value="기타">기타</option>
+                    <button
+                      id="openSubjectEditorButton"
+                      class="subject-edit-button"
+                      type="button"
+                    >
+                      과목 수정
+                    </button>
+                  </div>
+
+                  <!-- JS가 과목 버튼을 생성하는 영역 -->
+                  <div id="subjectList" class="subject-list"></div>
+
+                  <!-- 실제 선택값 -->
+                  <input id="timerSubject" type="hidden" value="" />
+                </div>
               </select>
             </div>
 
@@ -190,39 +196,78 @@
 
           <!-- 오늘의 등급 -->
           <div class="card home-grade">
-            <div class="card-header">
+            <div class="grade-card-top">
               <div>
-                <p class="caption">공부시간 기준</p>
-
+                <p class="caption">오늘 공부시간 기준</p>
                 <h3 class="title">오늘의 등급</h3>
               </div>
 
-              <span
-                class="grade-badge grade-{{ current_grade }}"
+              <div
                 id="todayGradeBadge"
+                class="grade-display grade-{{ current_grade }}"
               >
-                {{ current_grade }}등급
-              </span>
+                <strong id="todayGrade"> {{ current_grade }} </strong>
+
+                <span>등급</span>
+              </div>
             </div>
 
-            <div class="grade-main">
-              <strong id="todayGrade"> {{ current_grade }}등급 </strong>
+            <div class="grade-card-message">
+              <div>
+                <span>등급 점수</span>
 
-              <span id="todayGradePoint"> {{ current_grade_point }}점 </span>
+                <strong id="todayGradePoint">
+                  {{ current_grade_point }}점
+                </strong>
+              </div>
+
+              <p id="nextGradeText">
+                {% if current_grade == 1 %} 오늘 최고 등급을 달성했습니다. {%
+                else %} {{ current_grade - 1 }}등급까지 {{
+                format_time(remaining_grade_seconds) }} 남았습니다. {% endif %}
+              </p>
             </div>
 
-            <p class="grade-description" id="nextGradeText">
-              {% if current_grade == 1 %} 오늘 최고 등급을 달성했습니다. {% else
-              %} {{ current_grade - 1 }}등급까지 {{
-              format_time(remaining_grade_seconds) }} 남았습니다. {% endif %}
-            </p>
+            <div class="grade-scale">
+              <div
+                class="grade-scale-item {% if current_grade == 5 %}active{% endif %}"
+                data-grade-level="5"
+              >
+                <strong>5</strong>
+                <span>2시간 미만</span>
+              </div>
 
-            <div class="grade-rules">
-              <span>1등급 10시간 이상</span>
-              <span>2등급 7시간 이상</span>
-              <span>3등급 4시간 이상</span>
-              <span>4등급 2시간 이상</span>
-              <span>5등급 2시간 미만</span>
+              <div
+                class="grade-scale-item {% if current_grade == 4 %}active{% endif %}"
+                data-grade-level="4"
+              >
+                <strong>4</strong>
+                <span>2시간</span>
+              </div>
+
+              <div
+                class="grade-scale-item {% if current_grade == 3 %}active{% endif %}"
+                data-grade-level="3"
+              >
+                <strong>3</strong>
+                <span>4시간</span>
+              </div>
+
+              <div
+                class="grade-scale-item {% if current_grade == 2 %}active{% endif %}"
+                data-grade-level="2"
+              >
+                <strong>2</strong>
+                <span>7시간</span>
+              </div>
+
+              <div
+                class="grade-scale-item {% if current_grade == 1 %}active{% endif %}"
+                data-grade-level="1"
+              >
+                <strong>1</strong>
+                <span>10시간</span>
+              </div>
             </div>
           </div>
 
@@ -390,6 +435,64 @@
       </div>
     </section>
 
+    <!-- 과목 수정 모달 -->
+    <div id="subjectEditorModal" class="subject-editor-modal" hidden>
+      <div class="subject-editor-backdrop" data-close-subject-editor></div>
+
+      <div
+        class="subject-editor-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="subjectEditorTitle"
+      >
+        <div class="subject-editor-header">
+          <div>
+            <p class="caption">나만의 과목 목록</p>
+            <h2 id="subjectEditorTitle">과목 수정</h2>
+          </div>
+
+          <button
+            id="closeSubjectEditorButton"
+            class="subject-editor-close"
+            type="button"
+            aria-label="과목 수정 창 닫기"
+          >
+            ×
+          </button>
+        </div>
+
+        <form id="addSubjectForm" class="subject-add-form">
+          <input
+            id="newSubjectInput"
+            class="input"
+            type="text"
+            maxlength="10"
+            placeholder="추가할 과목 이름"
+            autocomplete="off"
+          />
+
+          <button class="btn btn-primary" type="submit">추가</button>
+        </form>
+
+        <p id="subjectEditorMessage" class="form-message" hidden></p>
+
+        <div id="subjectEditorList" class="subject-editor-list"></div>
+
+        <div class="subject-editor-footer">
+          <button
+            id="resetSubjectsButton"
+            class="btn btn-outline"
+            type="button"
+          >
+            기본 과목으로 초기화
+          </button>
+
+          <button id="saveSubjectsButton" class="btn btn-primary" type="button">
+            수정 완료
+          </button>
+        </div>
+      </div>
+    </div>
     <script>
       window.STUDY_PAGE_DATA = {
         todaySeconds: {{ today_seconds | int }},

@@ -852,6 +852,384 @@ a {
   margin-top: -6px;
 }
 
+/* =========================================================
+   과목 선택
+========================================================= */
+
+.subject-selector {
+  margin-top: 28px;
+}
+
+.subject-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.subject-selector-label {
+  margin: 0 0 5px;
+  color: #8b93a7;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.subject-selector-header strong {
+  display: block;
+  color: #252936;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.subject-selector-status {
+  flex-shrink: 0;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #f2f3f7;
+  color: #9298a8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.subject-selector-status.selected {
+  background: #eef0ff;
+  color: #5f63e8;
+}
+
+.subject-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.subject-button {
+  appearance: none;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 94px;
+  padding: 12px 8px;
+  border: 1px solid #e8eaf0;
+  border-radius: 16px;
+  background: #fff;
+  color: #4d5363;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.subject-button:hover {
+  transform: translateY(-2px);
+  border-color: #cfd2ff;
+  background: #fafaff;
+  box-shadow: 0 8px 20px rgb(68 73 120 / 8%);
+}
+
+.subject-button.active {
+  border-color: #696df1;
+  background: #f3f3ff;
+  color: #4c50d7;
+  box-shadow: 0 0 0 3px rgb(105 109 241 / 10%);
+}
+
+.subject-icon {
+  display: flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.subject-red {
+  background: #fff0f1;
+  color: #e95662;
+}
+
+.subject-blue {
+  background: #edf4ff;
+  color: #3478e5;
+}
+
+.subject-purple {
+  background: #f4efff;
+  color: #8059e7;
+}
+
+.subject-cyan {
+  background: #eafafd;
+  color: #20a7bd;
+}
+
+.subject-green {
+  background: #edfaf2;
+  color: #38a569;
+}
+
+.subject-lime {
+  background: #f0fae9;
+  color: #72a93b;
+}
+
+.subject-orange {
+  background: #fff3e7;
+  color: #e58a30;
+}
+
+.subject-yellow {
+  background: #fff9df;
+  color: #c89b1d;
+}
+
+.subject-brown {
+  background: #f8f0ea;
+  color: #a26d4b;
+}
+
+.subject-navy {
+  background: #edf1f8;
+  color: #405c88;
+}
+
+.subject-gray {
+  background: #f2f3f5;
+  color: #737887;
+}
+
+/* =========================================================
+   등급 카드
+========================================================= */
+
+.home-grade {
+  overflow: hidden;
+}
+
+.grade-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.grade-circle {
+  display: flex;
+  width: 82px;
+  height: 82px;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f1f2f6;
+  color: #6e7484;
+  box-shadow: inset 0 0 0 6px rgb(255 255 255 / 55%);
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.grade-circle strong {
+  line-height: 1;
+  font-size: 31px;
+  font-weight: 800;
+}
+
+.grade-circle span {
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.grade-circle.grade-1 {
+  background: #fff1ca;
+  color: #b77a00;
+}
+
+.grade-circle.grade-2 {
+  background: #e9ecff;
+  color: #6065dd;
+}
+
+.grade-circle.grade-3 {
+  background: #e7f7ed;
+  color: #338d59;
+}
+
+.grade-circle.grade-4 {
+  background: #eaf4ff;
+  color: #3779b9;
+}
+
+.grade-circle.grade-5 {
+  background: #f0f1f4;
+  color: #747987;
+}
+
+.grade-status {
+  margin-top: 24px;
+  padding: 20px;
+  border-radius: 18px;
+  background: #f7f8fb;
+}
+
+.grade-status-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.grade-status-main strong {
+  color: #262a36;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.grade-status-main span {
+  color: #686ff0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.grade-status p {
+  margin: 9px 0 0;
+  color: #7a8192;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.grade-levels {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.grade-level {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 4px;
+  border: 1px solid #ebecf1;
+  border-radius: 13px;
+  background: #fff;
+  color: #a0a5b2;
+  text-align: center;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.grade-level strong {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.grade-level span {
+  overflow: hidden;
+  width: 100%;
+  font-size: 10px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grade-level.active {
+  transform: translateY(-3px);
+  border-color: #696df1;
+  background: #f1f2ff;
+  color: #555ae0;
+  box-shadow: 0 7px 17px rgb(85 90 224 / 11%);
+}
+
+.focus-grade-item strong.grade-1,
+#focusGrade.grade-1 {
+  color: #f2bd42;
+}
+
+.focus-grade-item strong.grade-2,
+#focusGrade.grade-2 {
+  color: #969aff;
+}
+
+.focus-grade-item strong.grade-3,
+#focusGrade.grade-3 {
+  color: #62d38f;
+}
+
+.focus-grade-item strong.grade-4,
+#focusGrade.grade-4 {
+  color: #65b6ef;
+}
+
+.focus-grade-item strong.grade-5,
+#focusGrade.grade-5 {
+  color: #b5bac5;
+}
+
+/* =========================================================
+   반응형
+========================================================= */
+
+@media (max-width: 900px) {
+  .subject-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .subject-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .subject-button {
+    min-height: 84px;
+    border-radius: 14px;
+  }
+
+  .subject-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+  }
+
+  .grade-circle {
+    width: 70px;
+    height: 70px;
+  }
+
+  .grade-circle strong {
+    font-size: 27px;
+  }
+
+  .grade-levels {
+    gap: 5px;
+  }
+
+  .grade-level {
+    padding: 10px 2px;
+  }
+
+  .grade-level span {
+    font-size: 9px;
+  }
+}
+
 @media (min-width: 768px) {
   .login-card,
   .signup-card {
