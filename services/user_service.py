@@ -91,3 +91,37 @@ def update_daily_goal(user_id, goal_seconds):
         .execute()
     )
     return bool(result.data)
+
+def update_daily_goal(
+    user_id,
+    daily_goal_seconds,
+):
+    try:
+        response = (
+            supabase
+            .table("users")
+            .update({
+                "daily_goal_seconds": (
+                    daily_goal_seconds
+                ),
+            })
+            .eq("id", user_id)
+            .execute()
+        )
+
+        data = response.data or []
+
+        if not data:
+            raise ValueError(
+                "목표 공부시간을 저장하지 못했습니다."
+            )
+
+        return data[0]
+
+    except Exception as error:
+        print(
+            "하루 목표시간 수정 오류:",
+            repr(error),
+        )
+
+        raise

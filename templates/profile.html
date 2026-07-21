@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+
+    <title>프로필 | 돼지런한 여름방학</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+      rel="stylesheet"
+    />
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/base.css') }}"
+    />
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/dashboard.css') }}"
+    />
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/profile.css') }}"
+    />
+
+    <link
+      rel="shortcut icon"
+      href="{{ url_for('static', filename='image/logo.png') }}"
+      type="image/x-icon"
+    />
+  </head>
+
+  <body>
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a
+          href="{{ url_for('dashboard') }}"
+          class="topbar-logo"
+        >
+          <img
+            src="{{ url_for('static', filename='image/logo.png') }}"
+            alt="로고"
+          />
+
+          <h1>돼지런한 여름방학</h1>
+        </a>
+
+        <nav class="topbar-menu">
+          <a href="{{ url_for('dashboard') }}">
+            홈
+          </a>
+
+          <a href="{{ url_for('ranking') }}">
+            랭킹
+          </a>
+
+          <a
+            href="{{ url_for('profile') }}"
+            class="active"
+          >
+            프로필
+          </a>
+
+          <button
+            id="logoutButton"
+            class="topbar-link"
+            type="button"
+          >
+            로그아웃
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="profile-page container">
+      <section class="profile-header">
+        <div>
+          <p class="caption">MY PROFILE</p>
+
+          <h1>내 프로필</h1>
+
+          <p class="body">
+            계정 정보와 공부 목표를 확인하고 관리할 수 있습니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="profile-layout">
+        <!-- 왼쪽 사용자 정보 -->
+        <article class="card profile-user-card">
+          <div class="profile-avatar-wrapper">
+            <div
+              id="profileAvatar"
+              class="profile-avatar"
+            >
+              나
+            </div>
+
+            <span class="profile-status">
+              공부 중
+            </span>
+          </div>
+
+          <div class="profile-user-main">
+            <h2 id="profileName">
+              사용자
+            </h2>
+
+            <p id="profileDescription">
+              사용자 정보를 불러오는 중입니다.
+            </p>
+          </div>
+
+          <div class="profile-info-list">
+            <div class="profile-info-item">
+              <span>이름</span>
+
+              <strong id="profileInfoName">
+                -
+              </strong>
+            </div>
+
+            <div class="profile-info-item">
+              <span>학번</span>
+
+              <strong id="profileStudentNumber">
+                -
+              </strong>
+            </div>
+
+            <div class="profile-info-item">
+              <span>학급</span>
+
+              <strong id="profileClassName">
+                -
+              </strong>
+            </div>
+
+            <div class="profile-info-item">
+              <span>이메일</span>
+
+              <strong id="profileEmail">
+                -
+              </strong>
+            </div>
+          </div>
+        </article>
+
+        <!-- 오른쪽 -->
+        <div class="profile-content">
+          <!-- 통계 -->
+          <section class="profile-stat-grid">
+            <article class="card profile-stat-card">
+              <span>오늘 공부시간</span>
+
+              <strong id="profileTodayTime">
+                00:00:00
+              </strong>
+
+              <p>오늘 기록한 공부시간입니다.</p>
+            </article>
+
+            <article class="card profile-stat-card">
+              <span>전체 공부시간</span>
+
+              <strong id="profileTotalTime">
+                00:00:00
+              </strong>
+
+              <p>지금까지 기록한 전체 시간입니다.</p>
+            </article>
+
+            <article class="card profile-stat-card">
+              <span>평균 공부 등급</span>
+
+              <strong id="profileAverageGrade">
+                5등급
+              </strong>
+
+              <p id="profileGradeDescription">
+                측정된 공부 기록이 없습니다.
+              </p>
+            </article>
+
+            <article class="card profile-stat-card">
+              <span>측정 일수</span>
+
+              <strong id="profileMeasuredDays">
+                0일
+              </strong>
+
+              <p>공부시간이 기록된 날짜입니다.</p>
+            </article>
+          </section>
+
+          <!-- 목표 설정 -->
+          <article class="card profile-setting-card">
+            <div class="profile-card-header">
+              <div>
+                <p class="caption">DAILY GOAL</p>
+
+                <h2 class="title">
+                  하루 목표 공부시간
+                </h2>
+              </div>
+
+              <span
+                id="goalStatusBadge"
+                class="badge badge-idle"
+              >
+                설정 가능
+              </span>
+            </div>
+
+            <p class="profile-setting-description">
+              하루 동안 달성하고 싶은 목표 공부시간을 설정하세요.
+            </p>
+
+            <form id="goalForm">
+              <div class="goal-input-row">
+                <label class="goal-input-group">
+                  <span>시간</span>
+
+                  <input
+                    id="goalHours"
+                    class="input"
+                    type="number"
+                    min="0"
+                    max="23"
+                    value="8"
+                    required
+                  />
+                </label>
+
+                <label class="goal-input-group">
+                  <span>분</span>
+
+                  <input
+                    id="goalMinutes"
+                    class="input"
+                    type="number"
+                    min="0"
+                    max="59"
+                    value="0"
+                    required
+                  />
+                </label>
+
+                <button
+                  id="goalSaveButton"
+                  class="button primary-button"
+                  type="submit"
+                >
+                  목표 저장
+                </button>
+              </div>
+
+              <p
+                id="goalMessage"
+                class="form-message"
+                hidden
+              ></p>
+            </form>
+          </article>
+
+          <!-- 계정 관리 -->
+          <article class="card profile-account-card">
+            <div class="profile-card-header">
+              <div>
+                <p class="caption">ACCOUNT</p>
+
+                <h2 class="title">
+                  계정 관리
+                </h2>
+              </div>
+            </div>
+
+            <div class="account-action">
+              <div>
+                <strong>로그아웃</strong>
+
+                <p>
+                  현재 기기에서 계정 로그인을 종료합니다.
+                </p>
+              </div>
+
+              <button
+                id="profileLogoutButton"
+                class="button secondary-button"
+                type="button"
+              >
+                로그아웃
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <p
+        id="profileMessage"
+        class="form-message"
+        hidden
+      ></p>
+    </main>
+
+    <nav class="navbar">
+      <a
+        class="nav-item"
+        href="{{ url_for('dashboard') }}"
+      >
+        홈
+      </a>
+
+      <a
+        class="nav-item"
+        href="{{ url_for('ranking') }}"
+      >
+        랭킹
+      </a>
+
+      <a
+        class="nav-item active"
+        href="{{ url_for('profile') }}"
+      >
+        프로필
+      </a>
+
+      <button
+        id="mobileLogoutButton"
+        class="nav-item"
+        type="button"
+      >
+        로그아웃
+      </button>
+    </nav>
+
+    <script src="{{ url_for('static', filename='js/profile.js') }}"></script>
+  </body>
+</html>

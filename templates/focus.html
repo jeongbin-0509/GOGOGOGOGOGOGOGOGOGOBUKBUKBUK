@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+
+    <title>{{ subject }} 집중 모드 | 돼지런한 여름방학</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+      rel="stylesheet"
+    />
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/base.css') }}"
+    />
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/focus.css') }}"
+    />
+
+    <link
+      rel="shortcut icon"
+      href="{{ url_for('static', filename='image/logo.png') }}"
+      type="image/x-icon"
+    />
+  </head>
+
+  <body>
+    <main class="focus-page">
+      <section class="focus-container">
+        <header class="focus-header">
+          <a
+            href="{{ url_for('dashboard') }}"
+            id="focusBackLink"
+            class="focus-logo"
+          >
+            <img
+              src="{{ url_for('static', filename='image/logo.png') }}"
+              alt="돼지런한 여름방학 로고"
+            />
+
+            <span>돼지런한 여름방학</span>
+          </a>
+
+          <div class="focus-user">
+            <span>{{ user.name }}</span>
+            <span class="focus-user-divider"></span>
+            <span>{{ user.student_id }}</span>
+          </div>
+        </header>
+
+        <article class="focus-card">
+          <div class="focus-card-header">
+            <div>
+              <p class="focus-caption">
+                집중 모드
+              </p>
+
+              <h1 id="focusSubject">
+                {{ subject }}
+              </h1>
+            </div>
+
+            <span
+              id="focusStatusBadge"
+              class="focus-status focus-status-running"
+            >
+              공부 중
+            </span>
+          </div>
+
+          <div class="focus-timer-section">
+            <p class="focus-timer-label">
+              현재 공부시간
+            </p>
+
+            <strong
+              id="focusTimer"
+              class="focus-timer"
+            >
+              00:00:00
+            </strong>
+
+            <p
+              id="focusStartedAt"
+              class="focus-started-at"
+            >
+              공부 시작 시간을 불러오는 중입니다.
+            </p>
+          </div>
+
+          <div class="focus-progress-section">
+            <div class="focus-progress-header">
+              <span>오늘의 목표</span>
+
+              <strong id="focusGoalText">
+                0 / 0분
+              </strong>
+            </div>
+
+            <div
+              id="focusGoalProgressBar"
+              class="focus-progress-bar"
+              role="progressbar"
+              aria-label="오늘 공부 목표 진행률"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            >
+              <div
+                id="focusGoalProgress"
+                class="focus-progress-fill"
+              ></div>
+            </div>
+          </div>
+
+          <div class="focus-summary">
+            <div class="focus-summary-item">
+              <span>오늘 누적 공부시간</span>
+
+              <strong id="focusTodayTotal">
+                00:00:00
+              </strong>
+            </div>
+
+            <div class="focus-summary-item">
+              <span>현재 공부 등급</span>
+
+              <strong id="focusGrade">
+                5등급
+              </strong>
+            </div>
+
+            <div class="focus-summary-item">
+              <span>목표 달성률</span>
+
+              <strong id="focusGoalRate">
+                0%
+              </strong>
+            </div>
+          </div>
+
+          <div
+            id="focusGradeMessage"
+            class="focus-grade-message"
+          >
+            공부를 시작하면 등급 진행 상황이 표시됩니다.
+          </div>
+
+          <p
+            id="focusMessage"
+            class="focus-message"
+            hidden
+          ></p>
+
+          <div class="focus-button-group">
+            <button
+              id="pauseStudyButton"
+              class="btn btn-outline btn-lg"
+              type="button"
+            >
+              일시정지
+            </button>
+
+            <button
+              id="stopStudyButton"
+              class="btn btn-danger btn-lg"
+              type="button"
+            >
+              공부 종료
+            </button>
+          </div>
+
+          <p class="focus-notice">
+            공부를 종료하면 측정된 시간이 자동으로 저장됩니다.
+            새로고침해도 타이머는 유지됩니다.
+          </p>
+        </article>
+      </section>
+    </main>
+
+    <div
+      id="stopConfirmModal"
+      class="focus-modal"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="stopConfirmTitle"
+    >
+      <div
+        id="stopConfirmBackdrop"
+        class="focus-modal-backdrop"
+      ></div>
+
+      <div class="focus-modal-panel">
+        <h2 id="stopConfirmTitle">
+          공부를 종료할까요?
+        </h2>
+
+        <p>
+          지금까지 측정된 공부시간이 저장되고
+          대시보드로 돌아갑니다.
+        </p>
+
+        <div class="focus-modal-buttons">
+          <button
+            id="cancelStopButton"
+            class="btn btn-outline"
+            type="button"
+          >
+            계속 공부하기
+          </button>
+
+          <button
+            id="confirmStopButton"
+            class="btn btn-danger"
+            type="button"
+          >
+            종료하고 저장
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.FOCUS_PAGE_DATA = {
+        subject: {{ subject | tojson }},
+        todaySeconds: {{ today_seconds | default(0) | tojson }},
+        goalSeconds: {{ goal_seconds | default(28800) | tojson }},
+        dashboardUrl: {{ url_for('dashboard') | tojson }},
+        saveRecordUrl: {{ url_for('create_study_record_api') | tojson }}
+      };
+    </script>
+
+    <script
+      src="{{ url_for('static', filename='js/focus.js') }}?v=1"
+    ></script>
+  </body>
+</html>

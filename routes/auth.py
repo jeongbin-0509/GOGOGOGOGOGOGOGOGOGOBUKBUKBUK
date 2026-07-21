@@ -15,7 +15,7 @@ def register_auth_routes(app):
     def login():
         if request.method == "GET":
             if "user_id" in session:
-                return redirect(url_for("index"))
+                return redirect(url_for("login"))
             return render_template("login.html")
 
         try:
@@ -64,7 +64,7 @@ def register_auth_routes(app):
             return jsonify({
                 "success": True,
                 "message": "로그인되었습니다.",
-                "redirect": url_for("index"),
+                "redirect": url_for("dashboard"),
             })
 
         except Exception as error:
@@ -78,7 +78,7 @@ def register_auth_routes(app):
     def signup():
         if request.method == "GET":
             if "user_id" in session:
-                return redirect(url_for("index"))
+                return redirect(url_for("login"))
             return render_template("signup.html")
 
         try:

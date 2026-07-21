@@ -1,0 +1,371 @@
+/* =====================================================
+   프로필 페이지
+===================================================== */
+
+.profile-page {
+  padding-top: 42px;
+  padding-bottom: 110px;
+}
+
+.profile-header {
+  margin-bottom: 28px;
+}
+
+.profile-header h1 {
+  margin: 6px 0 10px;
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+}
+
+.profile-header .body {
+  margin: 0;
+}
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+
+/* =====================================================
+   사용자 카드
+===================================================== */
+
+.profile-user-card {
+  padding: 32px 26px;
+  position: sticky;
+  top: 100px;
+  text-align: center;
+}
+
+.profile-avatar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-avatar {
+  width: 112px;
+  height: 112px;
+  display: grid;
+  place-items: center;
+  border-radius: 36px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 138, 61, 0.16),
+      rgba(255, 190, 90, 0.38)
+    );
+  color: var(--primary, #ff8a3d);
+  font-size: 38px;
+  font-weight: 900;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 138, 61, 0.2),
+    0 18px 35px rgba(255, 138, 61, 0.15);
+}
+
+.profile-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: -10px;
+  padding: 7px 12px;
+  border: 4px solid var(--card-bg, #fff);
+  border-radius: 999px;
+  background: #e9f9ef;
+  color: #25844d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.profile-status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38b66c;
+}
+
+.profile-user-main {
+  margin-top: 18px;
+}
+
+.profile-user-main h2 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+
+.profile-user-main p {
+  margin: 7px 0 0;
+  color: var(--text-sub, #777);
+  font-size: 14px;
+}
+
+.profile-info-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 28px;
+  border-top: 1px solid var(--border-color, #ededed);
+}
+
+.profile-info-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 2px;
+  border-bottom: 1px solid var(--border-color, #ededed);
+  text-align: left;
+}
+
+.profile-info-item span {
+  flex-shrink: 0;
+  color: var(--text-sub, #777);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-info-item strong {
+  min-width: 0;
+  font-size: 14px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* =====================================================
+   오른쪽 콘텐츠
+===================================================== */
+
+.profile-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.profile-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.profile-stat-card {
+  min-height: 168px;
+  padding: 25px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.profile-stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.07);
+}
+
+.profile-stat-card > span {
+  color: var(--text-sub, #777);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-stat-card > strong {
+  display: block;
+  margin-top: 17px;
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-stat-card > p {
+  margin: 14px 0 0;
+  color: var(--text-sub, #777);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* =====================================================
+   설정 카드
+===================================================== */
+
+.profile-setting-card,
+.profile-account-card {
+  padding: 27px;
+}
+
+.profile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.profile-card-header h2 {
+  margin-top: 5px;
+}
+
+.profile-setting-description {
+  margin: 14px 0 23px;
+  color: var(--text-sub, #777);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.goal-input-row {
+  display: grid;
+  grid-template-columns:
+    minmax(100px, 1fr)
+    minmax(100px, 1fr)
+    auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.goal-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.goal-input-group > span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.goal-input-group input {
+  width: 100%;
+}
+
+#goalSaveButton {
+  min-height: 46px;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+
+#goalMessage {
+  margin: 15px 0 0;
+}
+
+/* =====================================================
+   계정 관리
+===================================================== */
+
+.account-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color, #ededed);
+}
+
+.account-action strong {
+  font-size: 15px;
+}
+
+.account-action p {
+  margin: 6px 0 0;
+  color: var(--text-sub, #777);
+  font-size: 13px;
+}
+
+/* =====================================================
+   태블릿
+===================================================== */
+
+@media (max-width: 900px) {
+  .profile-page {
+    padding-top: 28px;
+  }
+
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-user-card {
+    position: static;
+  }
+
+  .profile-user-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 22px;
+    text-align: left;
+  }
+
+  .profile-avatar-wrapper {
+    justify-content: center;
+  }
+
+  .profile-user-main {
+    align-self: center;
+    margin: 0;
+  }
+
+  .profile-info-list {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+/* =====================================================
+   모바일
+===================================================== */
+
+@media (max-width: 640px) {
+  .profile-page {
+    padding-top: 22px;
+    padding-bottom: 100px;
+  }
+
+  .profile-user-card {
+    display: flex;
+    flex-direction: column;
+    padding: 27px 21px;
+    text-align: center;
+  }
+
+  .profile-user-main {
+    margin-top: 2px;
+  }
+
+  .profile-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-stat-card {
+    min-height: 145px;
+    padding: 22px;
+  }
+
+  .profile-stat-card > strong {
+    font-size: 25px;
+  }
+
+  .profile-setting-card,
+  .profile-account-card {
+    padding: 23px 20px;
+  }
+
+  .goal-input-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #goalSaveButton {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .account-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .account-action button {
+    width: 100%;
+  }
+}

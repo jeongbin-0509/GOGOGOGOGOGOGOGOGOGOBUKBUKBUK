@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import jsonify, request
 
@@ -38,7 +38,9 @@ def register_study_routes(app):
 
             data = request.get_json(silent=True) or {}
 
-            subject = str(data.get("subject") or "").strip()
+            subject = str(
+                data.get("subject") or ""
+            ).strip()
 
             try:
                 duration_seconds = int(
@@ -62,7 +64,7 @@ def register_study_routes(app):
                 return jsonify(
                     {
                         "success": False,
-                        "message": "과목 이름이 너무 깁니다.",
+                        "message": "과목 이름은 30자 이하로 입력해 주세요.",
                     }
                 ), 400
 
@@ -78,11 +80,16 @@ def register_study_routes(app):
                 return jsonify(
                     {
                         "success": False,
-                        "message": "한 번에 저장할 수 있는 공부시간을 초과했습니다.",
+                        "message": "한 번에 24시간을 초과해 저장할 수 없습니다.",
                     }
                 ), 400
 
             study_date = today_iso()
+
+            if not ended_at:
+                ended_at = datetime.now(
+                    timezone.utc
+                ).isoformat()
 
             record_data = {
                 "user_id": user["id"],
@@ -91,10 +98,11 @@ def register_study_routes(app):
                 "study_date": study_date,
                 "started_at": started_at,
                 "ended_at": ended_at,
-                "created_at": datetime.now().isoformat(),
             }
 
-            record = create_study_record(record_data)
+            record = create_study_record(
+                record_data
+            )
 
             if not record:
                 return jsonify(
@@ -105,9 +113,8 @@ def register_study_routes(app):
                 ), 500
 
             daily_stats = update_daily_study_stats(
-                supabase=None,
-                user_id=user["id"],
-                study_date=study_date,
+                user["id"],
+                study_date,
             )
 
             return jsonify(
@@ -120,7 +127,10 @@ def register_study_routes(app):
             ), 201
 
         except Exception as error:
-            print("공부 기록 생성 오류:", repr(error))
+            print(
+                "공부 기록 생성 오류:",
+                repr(error),
+            )
 
             return jsonify(
                 {
@@ -151,10 +161,12 @@ def register_study_routes(app):
                     }
                 ), 401
 
-            if not study_record_exists(
+            exists = study_record_exists(
                 record_id,
                 user["id"],
-            ):
+            )
+
+            if not exists:
                 return jsonify(
                     {
                         "success": False,
@@ -167,21 +179,24 @@ def register_study_routes(app):
                 user["id"],
             )
 
-            update_daily_study_stats(
-                supabase=None,
-                user_id=user["id"],
-                study_date=today_iso(),
+            daily_stats = update_daily_study_stats(
+                user["id"],
+                today_iso(),
             )
 
             return jsonify(
                 {
                     "success": True,
                     "message": "공부 기록이 삭제되었습니다.",
+                    "daily_stats": daily_stats,
                 }
             )
 
         except Exception as error:
-            print("공부 기록 삭제 오류:", repr(error))
+            print(
+                "공부 기록 삭제 오류:",
+                repr(error),
+            )
 
             return jsonify(
                 {
