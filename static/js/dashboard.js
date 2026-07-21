@@ -1209,9 +1209,12 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-window.addEventListener("beforeunload", () => {
-  clearTimerInterval();
-});
+window.addEventListener(
+    "pagehide",
+    () => {
+        pauseSessionBeforeLeave();
+    }
+);
 
 // =========================================================
 // 실행

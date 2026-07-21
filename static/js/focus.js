@@ -417,6 +417,18 @@
         }
     }
 
+    function pauseSessionBeforeLeave() {
+    if (isSaving || session.isPaused) {
+        return;
+    }
+
+    session.isPaused = true;
+    session.pausedAt = Date.now();
+
+    saveSession(session);
+    stopTimerInterval();
+}
+
     function showMessage(message, type = "error") {
         if (!messageElement) {
             return;
@@ -512,8 +524,13 @@
             session.startedAt
         ).toISOString();
 
+        const endedAtTimestamp =
+            session.isPaused && session.pausedAt
+                ? session.pausedAt
+                : Date.now();
+
         const endedAtIso =
-            new Date().toISOString();
+            new Date(endedAtTimestamp).toISOString();
 
         try {
             const response = await fetch(
@@ -588,15 +605,14 @@
     event.preventDefault();
 
     const shouldLeave = window.confirm(
-        "집중모드를 나가면 현재 측정 중인 시간은 저장되지 않고 종료됩니다. 나가시겠습니까?"
+        "집중모드를 나가면 타이머가 일시정지됩니다. 대시보드로 이동할까요?"
     );
 
     if (!shouldLeave) {
         return;
     }
 
-    stopTimerInterval();
-    removeSession();
+    pauseSessionBeforeLeave();
 
     window.location.href = dashboardUrl;
 }
