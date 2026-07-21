@@ -3,15 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>혜윰X세콜 &lt;돼지런한 여름방학&gt;</title>
+    <title>혜윰X세미콜론 &lt;돼지런한 여름방학&gt;</title>
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
     />
     <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='css/style.css') }}"
-    />
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/base.css') }}"
+/>
+
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/dashboard.css') }}"
+/>
     <link
       rel="shortcut icon"
       href="{{ url_for('static', filename='image/logo.png') }}"
@@ -42,7 +47,7 @@
           alt="로고"
         />
 
-        <h1>혜윰X세콜 &lt;돼지런한 여름방학&gt;</h1>
+        <h1>혜윰X세미콜론 &lt;돼지런한 여름방학&gt;</h1>
       </div>
 
       <nav class="topbar-menu">
@@ -100,36 +105,29 @@
             </div>
 
             <!-- 과목 선택 -->
-            <div class="timer-subject">
-              <select id="timerSubject" class="input">
-                <!-- 과목 선택 -->
-                <!-- 과목 선택 -->
-                <div class="study-subject-section">
-                  <div class="study-section-header">
-                    <div>
-                      <p class="study-section-label">공부 과목</p>
-                      <strong id="selectedSubjectText"
-                        >과목을 선택해 주세요</strong
-                      >
-                    </div>
+<div class="timer-subject">
+  <div class="study-subject-section">
+    <div class="study-section-header">
+      <div>
+        <p class="study-section-label">공부 과목</p>
+      </div>
 
-                    <button
-                      id="openSubjectEditorButton"
-                      class="subject-edit-button"
-                      type="button"
-                    >
-                      과목 수정
-                    </button>
-                  </div>
+      <button
+        id="openSubjectEditorButton"
+        class="subject-edit-button"
+        type="button"
+      >
+        과목 수정
+      </button>
+    </div>
 
-                  <!-- JS가 과목 버튼을 생성하는 영역 -->
-                  <div id="subjectList" class="subject-list"></div>
+    <!-- JS가 과목 버튼을 생성하는 영역 -->
+    <div id="subjectList" class="subject-list"></div>
 
-                  <!-- 실제 선택값 -->
-                  <input id="timerSubject" type="hidden" value="" />
-                </div>
-              </select>
-            </div>
+    <!-- 실제 선택 과목 값을 저장 -->
+    <input id="timerSubject" type="hidden" value="" />
+  </div>
+</div>
 
             <div class="btn-group">
               <button
@@ -501,7 +499,7 @@
         studyGrade: {{ current_grade }},
         gradePoint: {{ current_grade_point }},
         nextGradeSeconds: {{ remaining_grade_seconds }}
-      };
+      }
     </script>
 
     <script src="{{ url_for('static', filename='js/study.js') }}"></script>

@@ -1,0 +1,139 @@
+body {
+  background:
+    radial-gradient(
+      circle at 10% 10%,
+      rgba(111, 98, 255, 0.15),
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 90% 90%,
+      rgba(102, 186, 255, 0.1),
+      transparent 32%
+    ),
+    #f4f6fc;
+}
+
+.signup-page {
+  min-height: 100vh;
+  padding-top: 46px;
+  padding-bottom: 46px;
+}
+
+.signup-card {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 38px 36px;
+  box-shadow: var(--shadow-md);
+}
+
+.signup-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.signup-logo {
+  width: 70px;
+  height: 70px;
+  margin: 0 auto 16px;
+  object-fit: contain;
+}
+
+.signup-header h1 {
+  margin-bottom: 10px;
+  font-size: 27px;
+  line-height: 1.35;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+}
+
+.signup-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.input-with-button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.input-with-button .btn {
+  min-width: 96px;
+}
+
+.email-input-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.email-domain {
+  color: var(--text-sub);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.signup-agreement {
+  padding: 15px;
+  background: #f7f8fc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.signup-footer {
+  margin-top: 6px;
+  text-align: center;
+}
+
+.signup-footer a {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.signup-footer a:hover {
+  text-decoration: underline;
+}
+
+.password-guide {
+  color: var(--text-light);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 650px) {
+  .signup-page {
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  .signup-card {
+    padding: 30px 20px;
+    border-radius: 20px;
+  }
+
+  .signup-row {
+    grid-template-columns: 1fr;
+  }
+
+  .input-with-button {
+    grid-template-columns: 1fr;
+  }
+
+  .input-with-button .btn {
+    width: 100%;
+  }
+
+  .email-input-area {
+    grid-template-columns: 1fr;
+  }
+}

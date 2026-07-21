@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+
+    <title>랭킹 | 돼지런한 여름방학</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+      rel="stylesheet"
+    />
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/base.css') }}"
+    />
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/dashboard.css') }}"
+    />
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/ranking.css') }}"
+    />
+
+    <link
+      rel="shortcut icon"
+      href="{{ url_for('static', filename='image/logo.png') }}"
+      type="image/x-icon"
+    />
+  </head>
+
+  <body>
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a
+          href="{{ url_for('dashboard') }}"
+          class="topbar-logo"
+        >
+          <img
+            src="{{ url_for('static', filename='image/logo.png') }}"
+            alt="로고"
+          />
+
+          <h1>돼지런한 여름방학</h1>
+        </a>
+
+        <nav class="topbar-menu">
+          <a href="{{ url_for('dashboard') }}">
+            홈
+          </a>
+
+          <a
+            href="{{ url_for('ranking') }}"
+            class="active"
+          >
+            랭킹
+          </a>
+
+          <a href="/profile">
+            프로필
+          </a>
+
+          <button
+            id="logoutButton"
+            class="topbar-link"
+            type="button"
+          >
+            로그아웃
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="ranking-page container">
+      <section class="ranking-header">
+        <div>
+          <p class="caption">공부시간 순위</p>
+
+          <h1>돼지런한 랭킹</h1>
+
+          <p class="body">
+            친구들과 함께 공부하며 순위를 올려보세요.
+          </p>
+        </div>
+
+        <div class="ranking-period">
+          <label for="rankingPeriod">
+            집계 기간
+          </label>
+
+          <select
+            id="rankingPeriod"
+            class="input"
+          >
+            <option value="today">오늘</option>
+            <option value="week">이번 주</option>
+            <option value="total">전체</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- 내 순위 -->
+      <section class="my-ranking-card card">
+        <div class="my-ranking-position">
+          <span>내 개인 순위</span>
+
+          <strong id="myRank">
+            -
+          </strong>
+        </div>
+
+        <div class="my-ranking-user">
+          <div
+            id="myRankingAvatar"
+            class="ranking-avatar"
+          >
+            나
+          </div>
+
+          <div>
+            <strong id="myRankingName">
+              사용자
+            </strong>
+
+            <span id="myRankingInfo">
+              정보를 불러오는 중입니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="my-ranking-time">
+          <span>공부시간</span>
+
+          <strong id="myRankingTime">
+            00:00:00
+          </strong>
+        </div>
+      </section>
+
+      <!-- 탭 -->
+      <div
+        class="ranking-tabs"
+        role="tablist"
+      >
+        <button
+          class="ranking-tab active"
+          type="button"
+          data-ranking-tab="personal"
+        >
+          개인 랭킹
+        </button>
+
+        <button
+          class="ranking-tab"
+          type="button"
+          data-ranking-tab="class"
+        >
+          반 랭킹
+        </button>
+      </div>
+
+      <!-- 개인 랭킹 -->
+      <section
+        id="personalRankingPanel"
+        class="ranking-panel"
+      >
+        <div class="ranking-podium">
+          <article
+            id="podiumSecond"
+            class="podium-item podium-second"
+          ></article>
+
+          <article
+            id="podiumFirst"
+            class="podium-item podium-first"
+          ></article>
+
+          <article
+            id="podiumThird"
+            class="podium-item podium-third"
+          ></article>
+        </div>
+
+        <article class="card ranking-table-card">
+          <div class="ranking-table-header">
+            <div>
+              <p class="caption">개인 순위</p>
+              <h2 class="title">전체 참가자</h2>
+            </div>
+
+            <span
+              id="personalRankingCount"
+              class="badge badge-idle"
+            >
+              0명
+            </span>
+          </div>
+
+          <div
+            id="personalRankingList"
+            class="ranking-list"
+          >
+            <p class="empty-message">
+              랭킹을 불러오는 중입니다.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <!-- 반 랭킹 -->
+      <section
+        id="classRankingPanel"
+        class="ranking-panel"
+        hidden
+      >
+        <article class="card ranking-table-card">
+          <div class="ranking-table-header">
+            <div>
+              <p class="caption">반별 순위</p>
+              <h2 class="title">학급 랭킹</h2>
+            </div>
+
+            <span
+              id="classRankingCount"
+              class="badge badge-idle"
+            >
+              0개 반
+            </span>
+          </div>
+
+          <div
+            id="classRankingList"
+            class="ranking-list class-ranking-list"
+          >
+            <p class="empty-message">
+              반 랭킹을 불러오는 중입니다.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <p
+        id="rankingMessage"
+        class="form-message"
+        hidden
+      ></p>
+    </main>
+
+    <nav class="navbar">
+      <a
+        class="nav-item"
+        href="{{ url_for('dashboard') }}"
+      >
+        홈
+      </a>
+
+      <a
+        class="nav-item active"
+        href="{{ url_for('ranking') }}"
+      >
+        랭킹
+      </a>
+
+      <a
+        class="nav-item"
+        href="/profile"
+      >
+        프로필
+      </a>
+
+      <button
+        id="mobileLogoutButton"
+        class="nav-item"
+        type="button"
+      >
+        로그아웃
+      </button>
+    </nav>
+
+    <script src="{{ url_for('static', filename='js/ranking.js') }}"></script>
+  </body>
+</html>
