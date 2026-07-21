@@ -580,22 +580,26 @@
     }
 
     function handleBackNavigation(event) {
-        if (isSaving) {
-            event.preventDefault();
-            return;
-        }
-
+    if (isSaving) {
         event.preventDefault();
-
-        const shouldLeave = window.confirm(
-            "집중 모드를 나가도 타이머는 계속 유지됩니다. 대시보드로 이동할까요?"
-        );
-
-        if (shouldLeave) {
-            window.location.href =
-                dashboardUrl;
-        }
+        return;
     }
+
+    event.preventDefault();
+
+    const shouldLeave = window.confirm(
+        "집중모드를 나가면 현재 측정 중인 시간은 저장되지 않고 종료됩니다. 나가시겠습니까?"
+    );
+
+    if (!shouldLeave) {
+        return;
+    }
+
+    stopTimerInterval();
+    removeSession();
+
+    window.location.href = dashboardUrl;
+}
 
     function handleKeyDown(event) {
         if (
@@ -667,12 +671,18 @@
             handleKeyDown
         );
 
-        window.addEventListener(
-            "beforeunload",
-            () => {
-                saveSession(session);
-            }
-        );
+window.addEventListener(
+    "pagehide",
+    () => {
+        if (isSaving) {
+            return;
+        }
+
+        stopTimerInterval();
+        removeSession();
+    }
+);
+
     }
 
     initializePage();
