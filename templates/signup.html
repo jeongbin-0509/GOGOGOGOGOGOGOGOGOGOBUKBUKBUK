@@ -125,7 +125,48 @@
               required
             />
           </div>
+<div class="privacy-agreement">
+  <label class="privacy-check-label" for="privacyAgree">
+    <input
+      id="privacyAgree"
+      name="privacy_agree"
+      type="checkbox"
+      value="true"
+      required
+    />
 
+    <span>
+      개인정보 수집 및 이용에 동의합니다.
+      <strong>(필수)</strong>
+    </span>
+  </label>
+
+  <details class="privacy-details">
+    <summary>개인정보 수집 및 이용 내용 보기</summary>
+
+    <div class="privacy-content">
+      <p>
+        <strong>수집 항목</strong><br />
+        이름, 학번, 아이디, 비밀번호
+      </p>
+
+      <p>
+        <strong>이용 목적</strong><br />
+        회원 식별, 로그인, 공부 기록 및 랭킹 서비스 제공
+      </p>
+
+      <p>
+        <strong>보유 기간</strong><br />
+        회원 탈퇴 또는 서비스 종료 시까지
+      </p>
+
+      <p>
+        개인정보 수집 및 이용에 동의하지 않을 수 있으나,
+        동의하지 않으면 회원가입이 불가능합니다.
+      </p>
+    </div>
+  </details>
+</div>
           <p id="signupMessage" class="form-message" hidden></p>
 
           <button class="btn btn-primary btn-lg btn-block" type="submit">

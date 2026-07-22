@@ -92,6 +92,16 @@ def register_auth_routes(app):
                 or data.get("passwordConfirm")
                 or ""
             )
+            privacy_agree_value = (
+                data.get("privacy_agree")
+                or data.get("privacyAgree")
+            )
+
+            privacy_agreed = (
+                privacy_agree_value is True
+                or str(privacy_agree_value).lower()
+                in ["true", "1", "on", "yes"]
+            )
 
             if not name:
                 return jsonify({"success": False, "message": "이름을 입력해 주세요."}), 400
@@ -111,6 +121,8 @@ def register_auth_routes(app):
                 return jsonify({"success": False, "message": "비밀번호가 너무 깁니다."}), 400
             if password != password_confirm:
                 return jsonify({"success": False, "message": "비밀번호 확인이 일치하지 않습니다."}), 400
+            if not privacy_agreed:
+                return jsonify({"success": False,"message": ("개인정보 수집 및 이용에 " "동의해야 회원가입할 수 있습니다."),}), 400
             if username_exists(username):
                 return jsonify({"success": False, "message": "이미 사용 중인 아이디입니다."}), 409
             if student_id_exists(student_id):
