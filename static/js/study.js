@@ -432,43 +432,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
     subjectList.innerHTML = "";
 
-    subjects.forEach((subject) => {
-      const button =
-        document.createElement("button");
+  subjects.forEach((subject) => {
+    const button = document.createElement("button");
 
-      button.type = "button";
-      button.className = "subject-button";
-      button.dataset.subject = subject;
+    button.type = "button";
+    button.className = "subject-choice-button";
+    button.textContent = subject;
 
-      if (subject === selectedSubject) {
-        button.classList.add("active");
-      }
+    if (subject === selectedSubject) {
+      button.classList.add("active");
+    }
 
-      const icon =
-        document.createElement("span");
+    button.setAttribute(
+      "aria-pressed",
+      String(subject === selectedSubject),
+    );
 
-      icon.className = "subject-icon";
-      icon.textContent =
-        getSubjectIcon(subject);
-
-      const text =
-        document.createElement("span");
-
-      text.className = "subject-name";
-      text.textContent = subject;
-
-      button.append(icon, text);
-
-      button.addEventListener(
-        "click",
-        () => {
-          selectSubject(subject);
-        },
-      );
-
-      subjectList.appendChild(button);
+    button.addEventListener("click", () => {
+      selectSubject(subject);
     });
-  }
+
+    subjectList.appendChild(button);
+  });
+}
 
   // =========================================================
   // 집중 모드 이동
@@ -757,13 +743,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         subjectInfo.className =
           "subject-editor-info";
-
-        const icon =
-          document.createElement("span");
-
-        icon.className = "subject-icon";
-        icon.textContent =
-          getSubjectIcon(subject);
 
         const name =
           document.createElement("span");
