@@ -1,437 +1,503 @@
-from datetime import date
-
 from extensions import supabase
 
 
 # =========================================================
-# 공통 변환
+# 공통 변환 함수
 # =========================================================
 
-def _to_int(value, default=0):
+def _to_int(value):
     try:
-        return int(value)
+        return int(value or 0)
     except (TypeError, ValueError):
-        return default
-
-
-# =========================================================
-# 공부 등급
-# =========================================================
-
-def calculate_study_grade(total_seconds):
-    """
-    하루 총 공부시간을 기준으로 5등급을 계산한다.
-
-    1등급: 12시간 이상
-    2등급: 8시간 이상
-    3등급: 5시간 이상
-    4등급: 3시간 이상
-    5등급: 3시간 미만
-    """
-
-    total_seconds = max(
-        0,
-        _to_int(total_seconds),
-    )
-
-    if total_seconds >= 12 * 3600:
-        return 1, 5
-
-    if total_seconds >= 8 * 3600:
-        return 2, 4
-
-    if total_seconds >= 5 * 3600:
-        return 3, 3
-
-    if total_seconds >= 3 * 3600:
-        return 4, 2
-
-    return 5, 1
-
-
-def calculate_average_study_grade(user_id):
-    """
-    daily_study_stats에 저장된 날짜별 등급의 평균을 계산한다.
-    """
-
-    empty_result = {
-        "average_grade": 5.0,
-        "display_grade": 5,
-        "measured_days": 0,
-        "total_grade_points": 0,
-    }
-
-    if not user_id:
-        return empty_result
-
-    result = (
-        supabase
-        .table("daily_study_stats")
-        .select("study_grade")
-        .eq("user_id", user_id)
-        .order("study_date")
-        .execute()
-    )
-
-    stats = result.data or []
-    grades = []
-
-    for stat in stats:
-        grade = _to_int(
-            stat.get("study_grade"),
-            default=-1,
-        )
-
-        if 1 <= grade <= 5:
-            grades.append(grade)
-
-    if not grades:
-        return empty_result
-
-    average_grade = sum(grades) / len(grades)
-
-    return {
-        "average_grade": round(
-            average_grade,
-            1,
-        ),
-        "display_grade": round(
-            average_grade,
-        ),
-        "measured_days": len(grades),
-        "total_grade_points": sum(grades),
-    }
-
-
-# =========================================================
-# 날짜별 통계
-# =========================================================
-
-def update_daily_study_stats(
-    user_id,
-    study_date=None,
-):
-    if not user_id:
-        raise ValueError(
-            "user_id가 필요합니다."
-        )
-
-    if study_date is None:
-        study_date = date.today().isoformat()
-
-    records_result = (
-        supabase
-        .table("study_records")
-        .select("duration_seconds")
-        .eq("user_id", user_id)
-        .eq("study_date", study_date)
-        .execute()
-    )
-
-    records = records_result.data or []
-
-    total_seconds = sum(
-        max(
-            0,
-            _to_int(
-                record.get("duration_seconds")
-            ),
-        )
-        for record in records
-    )
-
-    study_grade, grade_point = (
-        calculate_study_grade(
-            total_seconds
-        )
-    )
-
-    stats_data = {
-        "user_id": user_id,
-        "study_date": study_date,
-        "total_seconds": total_seconds,
-        "study_grade": study_grade,
-        "grade_point": grade_point,
-    }
-
-    (
-        supabase
-        .table("daily_study_stats")
-        .upsert(
-            stats_data,
-            on_conflict=(
-                "user_id,study_date"
-            ),
-        )
-        .execute()
-    )
-
-    return stats_data
-
-
-# =========================================================
-# 공부시간 조회
-# =========================================================
-
-def get_study_total(
-    user_id,
-    study_date=None,
-):
-    if not user_id:
         return 0
 
-    query = (
-        supabase
-        .table("study_records")
-        .select("duration_seconds")
-        .eq("user_id", user_id)
-    )
 
-    if study_date:
-        query = query.eq(
-            "study_date",
-            study_date,
+def _normalize_text(value):
+    return str(value or "").strip()
+
+
+def _format_class_name(grade, class_no):
+    grade = _to_int(grade)
+    class_no = _to_int(class_no)
+
+    if grade <= 0 or class_no <= 0:
+        return ""
+
+    return f"{grade}학년 {class_no}반"
+
+
+def _get_class_code(student_id):
+    """
+    학번 앞 3자리를 학급 코드로 사용한다.
+
+    예:
+    21121 -> 211
+    """
+
+    student_id = _normalize_text(student_id)
+
+    if len(student_id) < 3:
+        return ""
+
+    return student_id[:3]
+
+
+# =========================================================
+# 공동 순위 계산
+# =========================================================
+
+def _apply_competition_rank(rows, score_field):
+    """
+    점수를 기준으로 내림차순 정렬하고 공동 순위를 계산한다.
+
+    예:
+    100, 50, 50, 10
+    -> 1위, 2위, 2위, 4위
+    """
+
+    normalized_rows = []
+
+    for row in rows:
+        item = dict(row)
+
+        item[score_field] = _to_int(
+            item.get(score_field)
         )
 
-    result = query.execute()
-    records = result.data or []
+        normalized_rows.append(item)
 
-    return sum(
-        max(
+    normalized_rows.sort(
+        key=lambda item: item.get(
+            score_field,
             0,
-            _to_int(
-                record.get("duration_seconds")
-            ),
-        )
-        for record in records
+        ),
+        reverse=True,
     )
 
+    previous_score = None
+    current_rank = 0
 
-def get_recent_records(
-    user_id,
-    limit=10,
+    for index, item in enumerate(
+        normalized_rows,
+        start=1,
+    ):
+        current_score = _to_int(
+            item.get(score_field)
+        )
+
+        if current_score != previous_score:
+            current_rank = index
+            previous_score = current_score
+
+        item["rank"] = current_rank
+
+    return normalized_rows
+
+
+# =========================================================
+# 프론트엔드 응답 형식 변환
+# =========================================================
+
+def _normalize_personal_ranking(
+    row,
+    score_field,
+    current_user_id=None,
 ):
-    if not user_id:
+    user_id = row.get("user_id")
+
+    return {
+        "user_id": user_id,
+
+        "name": (
+            _normalize_text(row.get("name"))
+            or "사용자"
+        ),
+
+        "student_number": _normalize_text(
+            row.get("student_id")
+        ),
+
+        "class_name": _format_class_name(
+            row.get("grade"),
+            row.get("class_no"),
+        ),
+
+        "study_seconds": _to_int(
+            row.get(score_field)
+        ),
+
+        "rank": _to_int(
+            row.get("rank")
+        ),
+
+        "is_me": (
+            current_user_id is not None
+            and str(user_id) == str(current_user_id)
+        ),
+    }
+
+
+def _normalize_class_ranking(
+    row,
+    current_class_code=None,
+):
+    class_code = _normalize_text(
+        row.get("class_code")
+    )
+
+    return {
+        "class_code": class_code,
+
+        "class_name": _format_class_name(
+            row.get("grade"),
+            row.get("class_no"),
+        ),
+
+        "member_count": _to_int(
+            row.get("student_count")
+        ),
+
+        "total_study_seconds": _to_int(
+            row.get("total_seconds")
+        ),
+
+        "average_study_seconds": _to_int(
+            row.get("average_seconds")
+        ),
+
+        "rank": _to_int(
+            row.get("rank")
+        ),
+
+        "is_my_class": (
+            bool(current_class_code)
+            and class_code == current_class_code
+        ),
+    }
+
+
+# =========================================================
+# Supabase 조회
+# =========================================================
+
+def _fetch_personal_rankings(
+    view_name,
+    score_field,
+):
+    try:
+        result = (
+            supabase
+            .table(view_name)
+            .select(
+                "user_id,"
+                "name,"
+                "student_id,"
+                "grade,"
+                "class_no,"
+                "class_code,"
+                "total_seconds,"
+                "today_seconds"
+            )
+            .execute()
+        )
+
+        rows = result.data or []
+
+        return _apply_competition_rank(
+            rows,
+            score_field,
+        )
+
+    except Exception as error:
+        print(
+            f"{view_name} 조회 오류:",
+            repr(error),
+        )
         return []
 
-    limit = _to_int(
-        limit,
-        default=10,
-    )
 
-    limit = max(
-        1,
-        min(limit, 100),
-    )
-
-    result = (
-        supabase
-        .table("study_records")
-        .select(
-            "id,"
-            "subject,"
-            "duration_seconds,"
-            "study_date,"
-            "started_at,"
-            "ended_at,"
-            "created_at"
+def _fetch_class_rankings():
+    try:
+        result = (
+            supabase
+            .table("class_rankings")
+            .select(
+                "class_code,"
+                "grade,"
+                "class_no,"
+                "student_count,"
+                "total_seconds,"
+                "average_seconds"
+            )
+            .execute()
         )
-        .eq("user_id", user_id)
-        .order(
-            "created_at",
-            desc=True,
-        )
-        .limit(limit)
-        .execute()
-    )
 
-    return result.data or []
+        rows = result.data or []
+
+        return _apply_competition_rank(
+            rows,
+            "total_seconds",
+        )
+
+    except Exception as error:
+        print(
+            "class_rankings 조회 오류:",
+            repr(error),
+        )
+        return []
 
 
 # =========================================================
-# 공부 기록 생성
+# 외부 사용 함수
 # =========================================================
 
-def create_study_record(record_data):
-    if not isinstance(record_data, dict):
-        raise ValueError(
-            "record_data는 딕셔너리여야 합니다."
-        )
+def get_personal_rankings(
+    limit=20,
+    current_user_id=None,
+):
+    """
+    전체 누적 개인 랭킹
+    """
 
-    required_fields = [
-        "user_id",
-        "subject",
-        "duration_seconds",
-        "study_date",
+    rankings = _fetch_personal_rankings(
+        view_name="personal_rankings",
+        score_field="total_seconds",
+    )
+
+    return [
+        _normalize_personal_ranking(
+            row,
+            score_field="total_seconds",
+            current_user_id=current_user_id,
+        )
+        for row in rankings[:limit]
     ]
 
-    for field in required_fields:
-        if record_data.get(field) in (
-            None,
-            "",
-        ):
-            raise ValueError(
-                f"{field} 값이 필요합니다."
-            )
 
-    result = (
-        supabase
-        .table("study_records")
-        .insert(record_data)
-        .execute()
-    )
-
-    records = result.data or []
-
-    if not records:
-        return None
-
-    return records[0]
-
-
-# =========================================================
-# 공부 기록 단건 조회
-# =========================================================
-
-def get_study_record(
-    record_id,
-    user_id,
-):
-    if not record_id or not user_id:
-        return None
-
-    result = (
-        supabase
-        .table("study_records")
-        .select(
-            "id,"
-            "user_id,"
-            "subject,"
-            "duration_seconds,"
-            "study_date,"
-            "started_at,"
-            "ended_at,"
-            "created_at"
-        )
-        .eq("id", record_id)
-        .eq("user_id", user_id)
-        .limit(1)
-        .execute()
-    )
-
-    records = result.data or []
-
-    if not records:
-        return None
-
-    return records[0]
-
-
-def study_record_exists(
-    record_id,
-    user_id,
-):
-    return (
-        get_study_record(
-            record_id,
-            user_id,
-        )
-        is not None
-    )
-
-
-# =========================================================
-# 공부 기록 시간 수정
-# =========================================================
-
-def update_study_record_duration(
-    record_id,
-    user_id,
-    duration_seconds,
+def get_today_rankings(
+    limit=20,
+    current_user_id=None,
 ):
     """
-    공부 기록의 시간을 감소시키는 경우에만 수정한다.
-
-    반환값:
-    {
-        "record": 수정된 기록,
-        "previous_duration_seconds": 기존 시간,
-        "reduced_seconds": 감소한 시간
-    }
+    오늘 개인 랭킹
     """
 
-    if not record_id:
-        raise ValueError(
-            "record_id가 필요합니다."
-        )
-
-    if not user_id:
-        raise ValueError(
-            "user_id가 필요합니다."
-        )
-
-    new_duration = _to_int(
-        duration_seconds,
-        default=-1,
+    rankings = _fetch_personal_rankings(
+        view_name="today_personal_rankings",
+        score_field="today_seconds",
     )
 
-    if new_duration < 1:
-        raise ValueError(
-            "공부시간은 최소 1초 이상이어야 합니다."
+    return [
+        _normalize_personal_ranking(
+            row,
+            score_field="today_seconds",
+            current_user_id=current_user_id,
         )
+        for row in rankings[:limit]
+    ]
 
-    current_record = get_study_record(
-        record_id,
+
+def get_class_rankings(
+    limit=20,
+    current_student_id=None,
+):
+    """
+    반별 누적 공부시간 랭킹
+    """
+
+    current_class_code = _get_class_code(
+        current_student_id
+    )
+
+    rankings = _fetch_class_rankings()
+
+    return [
+        _normalize_class_ranking(
+            row,
+            current_class_code=current_class_code,
+        )
+        for row in rankings[:limit]
+    ]
+
+
+# =========================================================
+# 내 순위 조회
+# =========================================================
+
+def find_user_ranking(
+    rankings,
+    user_id,
+):
+    for ranking in rankings:
+        ranking_user_id = ranking.get("user_id")
+
+        if str(ranking_user_id) == str(user_id):
+            return ranking
+
+    return None
+
+
+def find_user_rank(
+    rankings,
+    user_id,
+):
+    ranking = find_user_ranking(
+        rankings,
         user_id,
     )
 
-    if not current_record:
-        raise LookupError(
-            "공부 기록을 찾을 수 없습니다."
-        )
+    if not ranking:
+        return None
 
-    previous_duration = max(
-        0,
-        _to_int(
-            current_record.get(
-                "duration_seconds"
+    return ranking.get("rank")
+
+
+def find_class_ranking(
+    rankings,
+    student_id,
+):
+    class_code = _get_class_code(student_id)
+
+    if not class_code:
+        return None
+
+    for ranking in rankings:
+        if (
+            _normalize_text(
+                ranking.get("class_code")
             )
-        ),
+            == class_code
+        ):
+            return ranking
+
+    return None
+
+
+def find_class_rank(
+    rankings,
+    student_id,
+):
+    ranking = find_class_ranking(
+        rankings,
+        student_id,
     )
 
-    if new_duration >= previous_duration:
-        raise ValueError(
-            "공부시간은 기존 기록보다 줄이는 것만 가능합니다."
-        )
+    if not ranking:
+        return None
 
-    result = (
-        supabase
-        .table("study_records")
-        .update({
-            "duration_seconds": new_duration,
-        })
-        .eq("id", record_id)
-        .eq("user_id", user_id)
-        .execute()
+    return ranking.get("rank")
+
+
+# =========================================================
+# 랭킹 API 전체 응답 생성
+# =========================================================
+
+def get_ranking_payload(
+    period,
+    current_user_id,
+    current_student_id,
+    limit=20,
+):
+    """
+    ranking.js가 요구하는 전체 응답을 생성한다.
+
+    반환 형식:
+    {
+        "my_ranking": {...},
+        "personal_ranking": [...],
+        "class_ranking": [...]
+    }
+    """
+
+    normalized_period = (
+        _normalize_text(period)
+        .lower()
     )
 
-    updated_records = result.data or []
+    today_periods = {
+        "today",
+        "daily",
+        "day",
+    }
 
-    if updated_records:
-        updated_record = updated_records[0]
+    if normalized_period in today_periods:
+        view_name = "today_personal_rankings"
+        score_field = "today_seconds"
     else:
-        updated_record = {
-            **current_record,
-            "duration_seconds": new_duration,
+        view_name = "personal_rankings"
+        score_field = "total_seconds"
+
+    # 내 순위가 20위 밖이어도 확인할 수 있도록
+    # 개인 랭킹 전체를 먼저 불러온다.
+    raw_personal_rankings = (
+        _fetch_personal_rankings(
+            view_name=view_name,
+            score_field=score_field,
+        )
+    )
+
+    normalized_personal_rankings = [
+        _normalize_personal_ranking(
+            row,
+            score_field=score_field,
+            current_user_id=current_user_id,
+        )
+        for row in raw_personal_rankings
+    ]
+
+    personal_ranking = (
+        normalized_personal_rankings[:limit]
+    )
+
+    my_ranking = find_user_ranking(
+        normalized_personal_rankings,
+        current_user_id,
+    )
+
+    if my_ranking is None:
+        my_ranking = {
+            "user_id": current_user_id,
+            "name": "사용자",
+            "student_number": (
+                _normalize_text(
+                    current_student_id
+                )
+            ),
+            "class_name": "",
+            "study_seconds": 0,
+            "rank": None,
+            "is_me": True,
         }
 
+    raw_class_rankings = (
+        _fetch_class_rankings()
+    )
+
+    current_class_code = _get_class_code(
+        current_student_id
+    )
+
+    normalized_class_rankings = [
+        _normalize_class_ranking(
+            row,
+            current_class_code=(
+                current_class_code
+            ),
+        )
+        for row in raw_class_rankings
+    ]
+
+    class_ranking = (
+        normalized_class_rankings[:limit]
+    )
+
     return {
-        "record": updated_record,
-        "previous_duration_seconds": (
-            previous_duration
+        "period": (
+            "today"
+            if normalized_period in today_periods
+            else "total"
         ),
-        "reduced_seconds": (
-            previous_duration
-            - new_duration
-        ),
+        "my_ranking": my_ranking,
+        "personal_ranking": personal_ranking,
+        "class_ranking": class_ranking,
     }
