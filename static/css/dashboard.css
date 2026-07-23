@@ -359,72 +359,142 @@ body {
    기록 목록
 ========================================================= */
 
-.home-record-list {
-  margin-top: 18px;
+.home-record {
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
-.record-item {
+.home-record-list {
+  height: 420px;
+  min-height: 0;
+  margin-top: 18px;
+  padding-right: 6px;
+
+  display: flex;
+  flex-direction: column;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #d2d8e2 transparent;
+}
+
+.home-record-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.home-record-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.home-record-list::-webkit-scrollbar-thumb {
+  background: #d2d8e2;
+  border-radius: 999px;
+}
+
+.home-record-list::-webkit-scrollbar-thumb:hover {
+  background: #aeb8c7;
+}
+
+.home-record-item {
   min-height: 77px;
   padding: 15px 0;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
+
+  flex-shrink: 0;
   border-bottom: 1px solid #edf0f4;
 }
 
-.record-item:last-child {
+.home-record-item:last-child {
   border-bottom: 0;
 }
 
-.record-info {
+.home-record-info {
   min-width: 0;
+
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
 
-.record-info strong {
+.home-record-info strong {
+  overflow: hidden;
+
   color: var(--text-main);
   font-size: 15px;
   font-weight: 800;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.record-date {
+.home-record-info span {
   color: var(--text-light);
   font-size: 12px;
 }
 
-.record-actions {
+.home-record-right {
   display: flex;
   align-items: center;
   gap: 11px;
+
   flex-shrink: 0;
 }
 
-.record-actions > span {
+.home-record-right > strong {
   color: var(--text-main);
   font-size: 14px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .record-delete-button {
   min-height: 34px;
   padding: 0 11px;
+
   color: var(--danger);
   background: var(--danger-light);
   border-radius: 10px;
+
   font-size: 12px;
   font-weight: 800;
+
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .record-delete-button:hover {
   color: #ffffff;
   background: var(--danger);
+  transform: translateY(-1px);
 }
+
+.record-delete-button:active {
+  transform: translateY(0);
+}
+
+.home-record-list .empty-message {
+  min-height: 180px;
+  margin: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--text-light);
+  text-align: center;
+}
+
 
 /* =========================================================
    등급 카드
