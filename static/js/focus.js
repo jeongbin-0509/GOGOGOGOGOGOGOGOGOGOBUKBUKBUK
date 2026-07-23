@@ -28,10 +28,6 @@
         pageData.saveRecordUrl ||
         "/api/study-records";
 
-    const activeSessionUrl =
-        pageData.activeSessionUrl ||
-        "/api/active-study-session";
-
     const STORAGE_KEY =
         "activeStudySession";
 
@@ -295,179 +291,6 @@
         saveSession();
     }
 
-    // =========================================================
-    // 진행 중인 과목 DB 저장
-    // =========================================================
-
-    async function saveActiveSessionToDatabase() {
-        const response = await fetch(
-            activeSessionUrl,
-            {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type":
-                        "application/json",
-                    Accept:
-                        "application/json"
-                },
-                body: JSON.stringify({
-                    subject:
-                        session.subject,
-                    started_at:
-                        new Date(
-                            session.startedAt
-                        ).toISOString()
-                })
-            }
-        );
-
-        let result = {};
-
-        try {
-            result = await response.json();
-        } catch (error) {
-            console.error(
-                "진행 중인 공부 세션 응답 변환 오류:",
-                error
-            );
-        }
-
-        if (!response.ok) {
-            throw new Error(
-                result.message ||
-                "공부할 과목을 DB에 저장하지 못했습니다."
-            );
-        }
-
-        return result.session || null;
-    }
-
-    async function deleteActiveSessionFromDatabase() {
-        const response = await fetch(
-            activeSessionUrl,
-            {
-                method: "DELETE",
-                credentials: "same-origin",
-                headers: {
-                    Accept:
-                        "application/json"
-                }
-            }
-        );
-
-        if (!response.ok) {
-            let result = {};
-
-            try {
-                result = await response.json();
-            } catch (error) {
-                console.error(
-                    "진행 중인 공부 세션 삭제 응답 변환 오류:",
-                    error
-                );
-            }
-
-            throw new Error(
-                result.message ||
-                "진행 중인 공부 세션을 삭제하지 못했습니다."
-            );
-        }
-    }
-
-    // =========================================================
-    // 시간 계산
-    // =========================================================
-
-    function getElapsedMilliseconds() {
-        const endTime =
-            session.isPaused &&
-            session.pausedAt
-                ? session.pausedAt
-                : Date.now();
-
-        const elapsed =
-            endTime -
-            session.startedAt -
-            session.totalPausedMilliseconds;
-
-        return Math.max(
-            0,
-            elapsed
-        );
-    }
-
-    function getElapsedSeconds() {
-        return Math.floor(
-            getElapsedMilliseconds() /
-            1000
-        );
-    }
-
-    function formatTime(
-        totalSeconds
-    ) {
-        const safeSeconds = Math.max(
-            0,
-            Math.floor(
-                Number(totalSeconds) || 0
-            )
-        );
-
-        const hours = Math.floor(
-            safeSeconds / 3600
-        );
-
-        const minutes = Math.floor(
-            (
-                safeSeconds %
-                3600
-            ) / 60
-        );
-
-        const seconds =
-            safeSeconds % 60;
-
-        return [
-            hours,
-            minutes,
-            seconds
-        ]
-            .map((value) =>
-                String(value).padStart(
-                    2,
-                    "0"
-                )
-            )
-            .join(":");
-    }
-
-    function formatDateTime(
-        timestamp
-    ) {
-        const date = new Date(
-            timestamp
-        );
-
-        if (
-            Number.isNaN(
-                date.getTime()
-            )
-        ) {
-            return "";
-        }
-
-        return date.toLocaleString(
-            "ko-KR",
-            {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit"
-            }
-        );
-    }
 
     // =========================================================
     // 공부 등급
@@ -1128,15 +951,6 @@
              * 사용자가 종료 버튼을 눌러 정상 저장한 경우에만
              * 진행 중인 세션을 삭제한다.
              */
-            try {
-                await deleteActiveSessionFromDatabase();
-            } catch (deleteError) {
-                console.error(
-                    "진행 중인 공부 세션 DB 삭제 오류:",
-                    deleteError
-                );
-            }
-
             removeSession();
 
             window.location.replace(
@@ -1223,31 +1037,6 @@
             window.location.replace(
                 dashboardUrl
             );
-
-            return;
-        }
-
-        try {
-            await saveActiveSessionToDatabase();
-        } catch (error) {
-            console.error(
-                "공부할 과목 DB 저장 오류:",
-                error
-            );
-
-            stopTimerInterval();
-            showMessage(
-                error.message ||
-                "공부할 과목을 DB에 저장하지 못했습니다."
-            );
-
-            if (pauseButton) {
-                pauseButton.disabled = true;
-            }
-
-            if (stopButton) {
-                stopButton.disabled = true;
-            }
 
             return;
         }
