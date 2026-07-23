@@ -28,6 +28,10 @@
         pageData.saveRecordUrl ||
         "/api/study-records";
 
+    const activeSessionUrl =
+        pageData.activeSessionUrl ||
+        "/api/active-study-session";
+
     const STORAGE_KEY =
         "activeStudySession";
 
@@ -289,6 +293,86 @@
     if (!session) {
         session = createNewSession();
         saveSession();
+    }
+
+    // =========================================================
+    // 진행 중인 과목 DB 저장
+    // =========================================================
+
+    async function saveActiveSessionToDatabase() {
+        const response = await fetch(
+            activeSessionUrl,
+            {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type":
+                        "application/json",
+                    Accept:
+                        "application/json"
+                },
+                body: JSON.stringify({
+                    subject:
+                        session.subject,
+                    started_at:
+                        new Date(
+                            session.startedAt
+                        ).toISOString()
+                })
+            }
+        );
+
+        let result = {};
+
+        try {
+            result = await response.json();
+        } catch (error) {
+            console.error(
+                "진행 중인 공부 세션 응답 변환 오류:",
+                error
+            );
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                result.message ||
+                "공부할 과목을 DB에 저장하지 못했습니다."
+            );
+        }
+
+        return result.session || null;
+    }
+
+    async function deleteActiveSessionFromDatabase() {
+        const response = await fetch(
+            activeSessionUrl,
+            {
+                method: "DELETE",
+                credentials: "same-origin",
+                headers: {
+                    Accept:
+                        "application/json"
+                }
+            }
+        );
+
+        if (!response.ok) {
+            let result = {};
+
+            try {
+                result = await response.json();
+            } catch (error) {
+                console.error(
+                    "진행 중인 공부 세션 삭제 응답 변환 오류:",
+                    error
+                );
+            }
+
+            throw new Error(
+                result.message ||
+                "진행 중인 공부 세션을 삭제하지 못했습니다."
+            );
+        }
     }
 
     // =========================================================
@@ -1044,6 +1128,15 @@
              * 사용자가 종료 버튼을 눌러 정상 저장한 경우에만
              * 진행 중인 세션을 삭제한다.
              */
+            try {
+                await deleteActiveSessionFromDatabase();
+            } catch (deleteError) {
+                console.error(
+                    "진행 중인 공부 세션 DB 삭제 오류:",
+                    deleteError
+                );
+            }
+
             removeSession();
 
             window.location.replace(
@@ -1125,11 +1218,36 @@
     // 초기화
     // =========================================================
 
-    function initializePage() {
+    async function initializePage() {
         if (!subject) {
             window.location.replace(
                 dashboardUrl
             );
+
+            return;
+        }
+
+        try {
+            await saveActiveSessionToDatabase();
+        } catch (error) {
+            console.error(
+                "공부할 과목 DB 저장 오류:",
+                error
+            );
+
+            stopTimerInterval();
+            showMessage(
+                error.message ||
+                "공부할 과목을 DB에 저장하지 못했습니다."
+            );
+
+            if (pauseButton) {
+                pauseButton.disabled = true;
+            }
+
+            if (stopButton) {
+                stopButton.disabled = true;
+            }
 
             return;
         }
