@@ -294,6 +294,16 @@ ol {
   font-size: 14px;
 }
 
+.site-footer {
+    width: 100%;
+    margin-top: 40px;
+    padding: 20px 16px;
+    text-align: center;
+    color: #98a2b3;
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+}
+
 @media (max-width: 700px) {
   .container {
     width: min(100% - 24px, 1180px);
