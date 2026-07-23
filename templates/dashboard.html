@@ -574,13 +574,13 @@
         logoutUrl:
           {{ url_for('logout') | tojson }},
 
-        deleteRecordUrlTemplate:
+        updateRecordUrlTemplate:
           "/api/study-records/__RECORD_ID__"
       };
     </script>
 
     <script
-      src="{{ url_for('static', filename='js/study.js') }}?v=5"
+      src="{{ url_for('static', filename='js/study.js') }}?v=6"
     ></script>
 
     <footer class="site-footer">

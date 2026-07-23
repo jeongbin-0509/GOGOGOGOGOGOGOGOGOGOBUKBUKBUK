@@ -9,6 +9,8 @@ from services.study_service import (
     get_recent_records,
     get_study_record,
     get_study_total,
+    get_study_subjects,
+    replace_study_subjects,
     update_daily_study_stats,
     update_study_record_duration,
 )
@@ -71,6 +73,115 @@ def _supabase_rest_request(method, table, *, params=None, json=None):
 
 
 def register_study_routes(app):
+
+    # =====================================================
+    # 사용자별 과목 목록 조회
+    # =====================================================
+    @app.route(
+        "/api/study-subjects",
+        methods=["GET"],
+        endpoint="study_subjects_api",
+    )
+    @login_required
+    def study_subjects_api():
+        try:
+            user = get_current_user()
+
+            if not user:
+                return jsonify({
+                    "success": False,
+                    "message": "로그인이 필요합니다.",
+                    "redirect": "/login",
+                }), 401
+
+            subject_rows = get_study_subjects(
+                user["id"]
+            )
+
+            return jsonify({
+                "success": True,
+                "initialized": bool(subject_rows),
+                "subjects": [
+                    row.get("name", "")
+                    for row in subject_rows
+                    if row.get("name")
+                ],
+                "subject_rows": subject_rows,
+            }), 200
+
+        except Exception as error:
+            print(
+                "과목 목록 조회 오류:",
+                repr(error),
+            )
+
+            return jsonify({
+                "success": False,
+                "message": (
+                    "과목 목록을 불러오는 중 "
+                    "오류가 발생했습니다."
+                ),
+            }), 500
+
+    # =====================================================
+    # 사용자별 과목 목록 전체 저장
+    # =====================================================
+    @app.route(
+        "/api/study-subjects",
+        methods=["PUT"],
+        endpoint="replace_study_subjects_api",
+    )
+    @login_required
+    def replace_study_subjects_api():
+        try:
+            user = get_current_user()
+
+            if not user:
+                return jsonify({
+                    "success": False,
+                    "message": "로그인이 필요합니다.",
+                    "redirect": "/login",
+                }), 401
+
+            data = request.get_json(silent=True) or {}
+            subjects = data.get("subjects")
+
+            subject_rows = replace_study_subjects(
+                user["id"],
+                subjects,
+            )
+
+            return jsonify({
+                "success": True,
+                "message": "과목 목록이 저장되었습니다.",
+                "subjects": [
+                    row.get("name", "")
+                    for row in subject_rows
+                    if row.get("name")
+                ],
+                "subject_rows": subject_rows,
+            }), 200
+
+        except ValueError as error:
+            return jsonify({
+                "success": False,
+                "message": str(error),
+            }), 400
+
+        except Exception as error:
+            print(
+                "과목 목록 저장 오류:",
+                repr(error),
+            )
+
+            return jsonify({
+                "success": False,
+                "message": (
+                    "과목 목록을 저장하는 중 "
+                    "오류가 발생했습니다."
+                ),
+            }), 500
+
     # =====================================================
     # 공부 기록 및 전체 공부시간 조회
     # =====================================================

@@ -161,8 +161,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // 상태
   // =========================================================
 
-  let subjects = loadSubjects();
-  let editingSubjects = [...subjects];
+  let subjects = [];
+  let editingSubjects = [];
   let selectedSubject = "";
 
   let editingRecord = null;
@@ -386,22 +386,20 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // =========================================================
-  // 과목 저장
+  // 과목 DB 저장 및 기존 localStorage 마이그레이션
   // =========================================================
 
-  function loadSubjects() {
+  function loadLegacySubjects() {
     try {
-      const savedValue =
-        localStorage.getItem(
-          SUBJECT_STORAGE_KEY,
-        );
+      const savedValue = localStorage.getItem(
+        SUBJECT_STORAGE_KEY,
+      );
 
       if (!savedValue) {
         return [...DEFAULT_SUBJECTS];
       }
 
-      const parsedValue =
-        JSON.parse(savedValue);
+      const parsedValue = JSON.parse(savedValue);
 
       if (!Array.isArray(parsedValue)) {
         return [...DEFAULT_SUBJECTS];
@@ -410,23 +408,17 @@ document.addEventListener("DOMContentLoaded", () => {
       const normalizedSubjects = [
         ...new Set(
           parsedValue
-            .map(
-              normalizeSubjectName,
-            )
+            .map(normalizeSubjectName)
             .filter(Boolean),
         ),
       ].slice(0, 20);
 
-      if (
-        normalizedSubjects.length === 0
-      ) {
-        return [...DEFAULT_SUBJECTS];
-      }
-
-      return normalizedSubjects;
+      return normalizedSubjects.length > 0
+        ? normalizedSubjects
+        : [...DEFAULT_SUBJECTS];
     } catch (error) {
       console.error(
-        "과목 목록 불러오기 오류:",
+        "기존 과목 목록 확인 오류:",
         error,
       );
 
@@ -434,18 +426,69 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function saveSubjects() {
+  function removeLegacySubjects() {
     try {
-      localStorage.setItem(
+      localStorage.removeItem(
         SUBJECT_STORAGE_KEY,
-        JSON.stringify(subjects),
       );
     } catch (error) {
       console.error(
-        "과목 목록 저장 오류:",
+        "기존 과목 목록 삭제 오류:",
         error,
       );
     }
+  }
+
+  async function requestSaveSubjects(
+    nextSubjects,
+  ) {
+    const result = await requestJSON(
+      "/api/study-subjects",
+      {
+        method: "PUT",
+        body: {
+          subjects: nextSubjects,
+        },
+      },
+    );
+
+    return Array.isArray(result.subjects)
+      ? result.subjects
+          .map(normalizeSubjectName)
+          .filter(Boolean)
+      : [...nextSubjects];
+  }
+
+  async function loadSubjects() {
+    const result = await requestJSON(
+      "/api/study-subjects",
+    );
+
+    let loadedSubjects = Array.isArray(
+      result.subjects,
+    )
+      ? result.subjects
+          .map(normalizeSubjectName)
+          .filter(Boolean)
+      : [];
+
+    // DB에 과목이 한 번도 저장되지 않은 계정은 기존
+    // localStorage 목록을 최초 1회 DB로 이전한다.
+    if (
+      !result.initialized ||
+      loadedSubjects.length === 0
+    ) {
+      loadedSubjects = await requestSaveSubjects(
+        loadLegacySubjects(),
+      );
+    }
+
+    subjects = loadedSubjects;
+    editingSubjects = [...subjects];
+    removeLegacySubjects();
+
+    renderSubjectList();
+    updateStartButton();
   }
 
   // =========================================================
@@ -1636,10 +1679,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function finishSubjectEditor() {
-    if (
-      editingSubjects.length === 0
-    ) {
+  async function finishSubjectEditor() {
+    if (editingSubjects.length === 0) {
       showMessage(
         subjectEditorMessage,
         "과목은 최소 1개 이상 있어야 합니다.",
@@ -1648,31 +1689,64 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    subjects = [...editingSubjects];
-    saveSubjects();
+    const previousSubjects = [...subjects];
 
-    if (
-      selectedSubject &&
-      !subjects.includes(
-        selectedSubject,
-      )
-    ) {
-      selectedSubject = "";
-
-      if (timerSubject) {
-        timerSubject.value = "";
-      }
+    if (finishSubjectEditorButton) {
+      finishSubjectEditorButton.disabled = true;
+      finishSubjectEditorButton.textContent =
+        "저장 중...";
     }
 
-    renderSubjectList();
-    updateStartButton();
-    closeSubjectEditor();
+    hideMessage(subjectEditorMessage);
 
-    showMessage(
-      dashboardMessage,
-      "과목 목록이 저장되었습니다.",
-      "success",
-    );
+    try {
+      subjects = await requestSaveSubjects(
+        editingSubjects,
+      );
+
+      editingSubjects = [...subjects];
+      removeLegacySubjects();
+
+      if (
+        selectedSubject &&
+        !subjects.includes(selectedSubject)
+      ) {
+        selectedSubject = "";
+
+        if (timerSubject) {
+          timerSubject.value = "";
+        }
+      }
+
+      renderSubjectList();
+      updateStartButton();
+      closeSubjectEditor();
+
+      showMessage(
+        dashboardMessage,
+        "과목 목록이 저장되었습니다.",
+        "success",
+      );
+    } catch (error) {
+      subjects = previousSubjects;
+
+      console.error(
+        "과목 목록 저장 오류:",
+        error,
+      );
+
+      showMessage(
+        subjectEditorMessage,
+        error.message ||
+          "과목 목록을 저장하지 못했습니다.",
+      );
+    } finally {
+      if (finishSubjectEditorButton) {
+        finishSubjectEditorButton.disabled = false;
+        finishSubjectEditorButton.textContent =
+          "완료";
+      }
+    }
   }
 
   function addSubject(event) {
@@ -2047,13 +2121,38 @@ document.addEventListener("DOMContentLoaded", () => {
   // 초기화
   // =========================================================
 
-  function initialize() {
+  async function initialize() {
     renderDashboardSummary();
-    renderSubjectList();
-    updateStartButton();
     bindEvents();
 
-    loadStudySummary();
+    if (subjectList) {
+      subjectList.innerHTML = `
+        <p class="empty-message">
+          과목 목록을 불러오는 중입니다.
+        </p>
+      `;
+    }
+
+    await Promise.allSettled([
+      loadStudySummary(),
+      loadSubjects().catch((error) => {
+        console.error(
+          "과목 목록 초기화 오류:",
+          error,
+        );
+
+        subjects = loadLegacySubjects();
+        editingSubjects = [...subjects];
+        renderSubjectList();
+        updateStartButton();
+
+        showMessage(
+          dashboardMessage,
+          error.message ||
+            "과목 목록을 불러오지 못했습니다.",
+        );
+      }),
+    ]);
   }
 
   initialize();

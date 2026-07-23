@@ -435,3 +435,145 @@ def update_study_record_duration(
             - new_duration
         ),
     }
+
+# =========================================================
+# 사용자별 공부 과목
+# =========================================================
+
+DEFAULT_STUDY_SUBJECTS = [
+    "국어",
+    "수학",
+    "영어",
+    "기타",
+]
+
+
+def _normalize_subject_name(value):
+    """과목 이름의 앞뒤 공백과 연속 공백을 정리한다."""
+    return " ".join(str(value or "").strip().split())
+
+
+def normalize_study_subjects(subjects):
+    """과목 배열을 검증하고 DB에 저장 가능한 형태로 정리한다."""
+    if not isinstance(subjects, list):
+        raise ValueError("subjects는 배열이어야 합니다.")
+
+    normalized = []
+    seen = set()
+
+    for value in subjects:
+        name = _normalize_subject_name(value)
+
+        if not name:
+            continue
+
+        if len(name) > 20:
+            raise ValueError(
+                "과목 이름은 20자 이하로 입력해 주세요."
+            )
+
+        duplicate_key = name.casefold()
+
+        if duplicate_key in seen:
+            raise ValueError(
+                f"중복된 과목이 있습니다: {name}"
+            )
+
+        seen.add(duplicate_key)
+        normalized.append(name)
+
+    if not normalized:
+        raise ValueError(
+            "과목은 최소 1개 이상 있어야 합니다."
+        )
+
+    if len(normalized) > 20:
+        raise ValueError(
+            "과목은 최대 20개까지 등록할 수 있습니다."
+        )
+
+    return normalized
+
+
+def get_study_subjects(user_id):
+    """사용자의 과목을 정렬 순서대로 반환한다."""
+    if not user_id:
+        return []
+
+    result = (
+        supabase
+        .table("study_subjects")
+        .select("id,name,sort_order,created_at")
+        .eq("user_id", user_id)
+        .order("sort_order")
+        .order("id")
+        .execute()
+    )
+
+    return result.data or []
+
+
+def replace_study_subjects(user_id, subjects):
+    """
+    사용자의 과목 목록을 전달받은 순서대로 동기화한다.
+
+    기존에 남아 있는 과목은 ID를 유지하고, 새 과목만 추가하며,
+    목록에서 빠진 과목만 삭제한다. study_records.subject 문자열은
+    변경하지 않는다.
+    """
+    if not user_id:
+        raise ValueError("user_id가 필요합니다.")
+
+    normalized = normalize_study_subjects(subjects)
+    existing_rows = get_study_subjects(user_id)
+    existing_by_name = {
+        str(row.get("name") or ""): row
+        for row in existing_rows
+    }
+
+    for index, name in enumerate(normalized):
+        existing = existing_by_name.get(name)
+
+    if existing:
+        (
+            supabase
+            .table("study_subjects")
+            .update({
+                "sort_order": index
+            })
+            .eq("id", existing["id"])
+            .execute()
+        )
+
+    else:
+        (
+            supabase
+            .table("study_subjects")
+            .insert({
+                "user_id": user_id,
+                "name": name,
+                "sort_order": index
+            })
+            .execute()
+        )
+
+    desired_names = set(normalized)
+    obsolete_ids = [
+        row.get("id")
+        for row in existing_rows
+        if str(row.get("name") or "")
+        not in desired_names
+        and row.get("id") is not None
+    ]
+
+    if obsolete_ids:
+        (
+            supabase
+            .table("study_subjects")
+            .delete()
+            .eq("user_id", user_id)
+            .in_("id", obsolete_ids)
+            .execute()
+        )
+
+    return get_study_subjects(user_id)
