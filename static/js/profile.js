@@ -61,6 +61,33 @@ const goalStatusBadgeDOM =
 const profileMessageDOM =
   document.getElementById("profileMessage");
 
+const profileEditFormDOM =
+  document.getElementById("profileEditForm");
+
+const profileEditNameDOM =
+  document.getElementById("profileEditName");
+
+const profileEditStudentIdDOM =
+  document.getElementById("profileEditStudentId");
+
+const profileCurrentPasswordDOM =
+  document.getElementById("profileCurrentPassword");
+
+const profileNewPasswordDOM =
+  document.getElementById("profileNewPassword");
+
+const profileNewPasswordConfirmDOM =
+  document.getElementById("profileNewPasswordConfirm");
+
+const profileEditSaveButtonDOM =
+  document.getElementById("profileEditSaveButton");
+
+const profileEditMessageDOM =
+  document.getElementById("profileEditMessage");
+
+const profileEditStatusBadgeDOM =
+  document.getElementById("profileEditStatusBadge");
+
 const logoutButtonDOM =
   document.getElementById("logoutButton");
 
@@ -184,6 +211,38 @@ function setGoalLoading(isLoading) {
     : "목표 저장";
 }
 
+function showProfileEditMessage(
+  message,
+  isError = false,
+) {
+  profileEditMessageDOM.textContent = message;
+  profileEditMessageDOM.hidden = false;
+  profileEditMessageDOM.classList.toggle(
+    "error",
+    isError,
+  );
+  profileEditMessageDOM.classList.toggle(
+    "success",
+    !isError,
+  );
+}
+
+function hideProfileEditMessage() {
+  profileEditMessageDOM.textContent = "";
+  profileEditMessageDOM.hidden = true;
+  profileEditMessageDOM.classList.remove(
+    "error",
+    "success",
+  );
+}
+
+function setProfileEditLoading(isLoading) {
+  profileEditSaveButtonDOM.disabled = isLoading;
+  profileEditSaveButtonDOM.textContent = isLoading
+    ? "저장 중..."
+    : "변경사항 저장";
+}
+
 // =========================================================
 // 프로필 출력
 // =========================================================
@@ -227,6 +286,10 @@ function renderProfile(data) {
   profileClassNameDOM.textContent =
     className;
   profileEmailDOM.textContent = email;
+
+  profileEditNameDOM.value = name;
+  profileEditStudentIdDOM.value =
+    studentNumber === "-" ? "" : studentNumber;
 
   profileTodayTimeDOM.textContent =
     formatSeconds(data.today_seconds);
@@ -284,9 +347,140 @@ async function loadProfile() {
     );
 
     renderProfile(result);
+
+    if (result.force_password_change) {
+      showProfileEditMessage(
+        "임시 비밀번호로 로그인했습니다. 아래에서 새 비밀번호를 설정해 주세요.",
+        true,
+      );
+      profileCurrentPasswordDOM?.focus();
+    }
   } catch (error) {
     console.error(error);
     showProfileMessage(error.message);
+  }
+}
+
+// =========================================================
+// 프로필 수정
+// =========================================================
+
+async function saveProfileEdit(event) {
+  event.preventDefault();
+  hideProfileEditMessage();
+
+  const name = profileEditNameDOM.value.trim();
+  const studentId =
+    profileEditStudentIdDOM.value.trim();
+
+  const currentPassword =
+    profileCurrentPasswordDOM.value;
+  const newPassword =
+    profileNewPasswordDOM.value;
+  const newPasswordConfirm =
+    profileNewPasswordConfirmDOM.value;
+
+  if (!name) {
+    showProfileEditMessage(
+      "이름을 입력해주세요.",
+      true,
+    );
+    profileEditNameDOM.focus();
+    return;
+  }
+
+  if (name.length > 20) {
+    showProfileEditMessage(
+      "이름은 20자 이하로 입력해주세요.",
+      true,
+    );
+    return;
+  }
+
+  if (!/^\d{5}$/.test(studentId)) {
+    showProfileEditMessage(
+      "학번 5자리를 정확하게 입력해주세요.",
+      true,
+    );
+    profileEditStudentIdDOM.focus();
+    return;
+  }
+
+  const hasPasswordInput =
+    currentPassword.length > 0 ||
+    newPassword.length > 0 ||
+    newPasswordConfirm.length > 0;
+
+  if (hasPasswordInput) {
+    if (!currentPassword) {
+      showProfileEditMessage(
+        "현재 비밀번호를 입력해주세요.",
+        true,
+      );
+      profileCurrentPasswordDOM.focus();
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      showProfileEditMessage(
+        "새 비밀번호는 6자 이상이어야 합니다.",
+        true,
+      );
+      profileNewPasswordDOM.focus();
+      return;
+    }
+
+    if (newPassword !== newPasswordConfirm) {
+      showProfileEditMessage(
+        "새 비밀번호 확인이 일치하지 않습니다.",
+        true,
+      );
+      profileNewPasswordConfirmDOM.focus();
+      return;
+    }
+  }
+
+  setProfileEditLoading(true);
+
+  try {
+    const result = await apiRequest(
+      "/api/profile",
+      {
+        method: "PATCH",
+        body: {
+          name,
+          student_id: studentId,
+          current_password: currentPassword,
+          new_password: newPassword,
+          new_password_confirm:
+            newPasswordConfirm,
+        },
+      },
+    );
+
+    showProfileEditMessage(
+      result.message ||
+        "프로필이 수정되었습니다.",
+    );
+
+    profileEditStatusBadgeDOM.textContent =
+      "저장 완료";
+
+    profileCurrentPasswordDOM.value = "";
+    profileNewPasswordDOM.value = "";
+    profileNewPasswordConfirmDOM.value = "";
+
+    await loadProfile();
+  } catch (error) {
+    console.error(error);
+    showProfileEditMessage(
+      error.message,
+      true,
+    );
+    profileEditStatusBadgeDOM.textContent =
+      "수정 실패";
+  } finally {
+    setProfileEditLoading(false);
   }
 }
 
@@ -390,6 +584,11 @@ async function logout() {
 // =========================================================
 // 이벤트
 // =========================================================
+
+profileEditFormDOM?.addEventListener(
+  "submit",
+  saveProfileEdit,
+);
 
 goalFormDOM.addEventListener(
   "submit",

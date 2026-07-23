@@ -735,9 +735,13 @@
                 );
             }
 
+            // 종료 성공 후 pagehide / beforeunload가 세션을 다시 저장하지 못하게
+            // 먼저 메모리 세션을 완전히 제거한다.
+            stopTimer();
             removeSession();
-            closeStopModal();
+            session = null;
 
+            closeStopModal();
             window.location.replace(CONFIG.dashboardUrl);
         } catch (error) {
             console.error("공부 기록 저장 실패:", error);
@@ -795,11 +799,15 @@
     }
 
     function handlePageHide() {
-        saveSession();
+        if (!isSaving && session) {
+            saveSession();
+        }
     }
 
     function handleBeforeUnload() {
-        saveSession();
+        if (!isSaving && session) {
+            saveSession();
+        }
     }
 
     function handleStorageChange(event) {

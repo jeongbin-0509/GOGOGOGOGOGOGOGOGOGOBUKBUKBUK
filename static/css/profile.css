@@ -192,6 +192,7 @@
 ===================================================== */
 
 .profile-setting-card,
+.profile-edit-card,
 .profile-account-card {
   padding: 27px;
 }
@@ -247,6 +248,80 @@
 
 #goalMessage {
   margin: 15px 0 0;
+}
+
+
+/* =====================================================
+   프로필 수정
+===================================================== */
+
+.profile-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.profile-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.profile-input-group > span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-input-group input {
+  width: 100%;
+}
+
+.password-edit-section {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border-color, #ededed);
+}
+
+.password-edit-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 15px;
+}
+
+.password-edit-heading strong {
+  font-size: 15px;
+}
+
+.password-edit-heading span {
+  color: var(--text-sub, #777);
+  font-size: 12px;
+}
+
+.profile-password-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.profile-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+#profileEditMessage {
+  flex: 1;
+  margin: 0;
+}
+
+#profileEditSaveButton {
+  min-height: 46px;
+  padding-left: 22px;
+  padding-right: 22px;
 }
 
 /* =====================================================
@@ -310,6 +385,10 @@
     grid-column: 1 / -1;
     width: 100%;
   }
+
+  .profile-password-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* =====================================================
@@ -347,6 +426,7 @@
   }
 
   .profile-setting-card,
+  .profile-edit-card,
   .profile-account-card {
     padding: 23px 20px;
   }
@@ -357,6 +437,27 @@
 
   #goalSaveButton {
     grid-column: 1 / -1;
+    width: 100%;
+  }
+
+
+  .profile-edit-grid,
+  .profile-password-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .password-edit-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .profile-edit-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  #profileEditSaveButton {
     width: 100%;
   }
 

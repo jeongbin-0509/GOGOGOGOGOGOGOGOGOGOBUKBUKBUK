@@ -3,7 +3,13 @@ from flask import (
     redirect,
     render_template,
     request,
+    session,
     url_for,
+)
+
+from werkzeug.security import (
+    check_password_hash,
+    generate_password_hash,
 )
 
 from services.ranking_service import (
@@ -20,7 +26,10 @@ from services.study_service import (
 )
 from services.user_service import (
     get_current_user,
+    get_user_with_password,
+    student_id_exists_except,
     update_daily_goal,
+    update_profile,
 )
 from utils.decorators import login_required
 from utils.helpers import today_iso
@@ -393,7 +402,7 @@ def register_main_routes(app):
     # =====================================================
     @app.route(
         "/api/profile",
-        methods=["GET"],
+        methods=["GET", "PATCH"],
         endpoint="profile_api",
     )
     def profile_api():
@@ -407,6 +416,177 @@ def register_main_routes(app):
                 }), 401
 
             user_id = user["id"]
+
+            # =================================================
+            # 프로필 수정
+            # =================================================
+            if request.method == "PATCH":
+                data = request.get_json(silent=True) or {}
+
+                name = str(
+                    data.get("name") or ""
+                ).strip()
+
+                student_id = str(
+                    data.get("student_id")
+                    or data.get("student_number")
+                    or ""
+                ).strip()
+
+                current_password = str(
+                    data.get("current_password") or ""
+                )
+
+                new_password = str(
+                    data.get("new_password") or ""
+                )
+
+                new_password_confirm = str(
+                    data.get("new_password_confirm")
+                    or data.get("password_confirm")
+                    or ""
+                )
+
+                if not name:
+                    return jsonify({
+                        "success": False,
+                        "message": "이름을 입력해 주세요.",
+                    }), 400
+
+                if len(name) > 20:
+                    return jsonify({
+                        "success": False,
+                        "message": "이름은 20자 이하로 입력해 주세요.",
+                    }), 400
+
+                if (
+                    len(student_id) != 5
+                    or not student_id.isdigit()
+                ):
+                    return jsonify({
+                        "success": False,
+                        "message": "학번 5자리를 정확하게 입력해 주세요.",
+                    }), 400
+
+                if student_id_exists_except(
+                    student_id,
+                    user_id,
+                ):
+                    return jsonify({
+                        "success": False,
+                        "message": "해당 학번으로 가입한 다른 계정이 있습니다.",
+                    }), 409
+
+                password_hash = None
+
+                # 새 비밀번호를 입력한 경우에만 비밀번호 변경
+                if (
+                    current_password
+                    or new_password
+                    or new_password_confirm
+                ):
+                    if not current_password:
+                        return jsonify({
+                            "success": False,
+                            "message": "현재 비밀번호를 입력해 주세요.",
+                        }), 400
+
+                    if len(new_password) < 6:
+                        return jsonify({
+                            "success": False,
+                            "message": "새 비밀번호는 6자 이상이어야 합니다.",
+                        }), 400
+
+                    if len(new_password) > 100:
+                        return jsonify({
+                            "success": False,
+                            "message": "새 비밀번호가 너무 깁니다.",
+                        }), 400
+
+                    if (
+                        new_password
+                        != new_password_confirm
+                    ):
+                        return jsonify({
+                            "success": False,
+                            "message": "새 비밀번호 확인이 일치하지 않습니다.",
+                        }), 400
+
+                    account = get_user_with_password(
+                        user_id
+                    )
+
+                    stored_password_hash = (
+                        account.get("password_hash")
+                        if account
+                        else None
+                    )
+
+                    if (
+                        not stored_password_hash
+                        or not check_password_hash(
+                            stored_password_hash,
+                            current_password,
+                        )
+                    ):
+                        return jsonify({
+                            "success": False,
+                            "message": "현재 비밀번호가 올바르지 않습니다.",
+                        }), 401
+
+                    if check_password_hash(
+                        stored_password_hash,
+                        new_password,
+                    ):
+                        return jsonify({
+                            "success": False,
+                            "message": "새 비밀번호는 현재 비밀번호와 다르게 입력해 주세요.",
+                        }), 400
+
+                    password_hash = (
+                        generate_password_hash(
+                            new_password
+                        )
+                    )
+
+                updated_user = update_profile(
+                    user_id=user_id,
+                    name=name,
+                    student_id=student_id,
+                    password_hash=password_hash,
+                )
+
+                if not updated_user:
+                    raise RuntimeError(
+                        "프로필 수정 결과가 없습니다."
+                    )
+
+                # 서버 세션에도 최신 사용자 정보 반영
+                session["name"] = name
+                session["student_id"] = student_id
+
+                if password_hash:
+                    session["force_password_change"] = False
+
+                return jsonify({
+                    "success": True,
+                    "message": (
+                        "프로필과 비밀번호가 수정되었습니다."
+                        if password_hash
+                        else "프로필이 수정되었습니다."
+                    ),
+                    "user": {
+                        "id": updated_user.get("id"),
+                        "name": updated_user.get("name"),
+                        "student_number": updated_user.get(
+                            "student_id"
+                        ),
+                        "class_name": _get_user_class_name(
+                            updated_user
+                        ),
+                        "email": "",
+                    },
+                }), 200
 
             today_seconds = get_study_total(
                 user_id,
@@ -458,10 +638,7 @@ def register_main_routes(app):
                     ),
 
                     "class_name": (
-                        user.get("class_name")
-                        or user.get("student_class")
-                        or user.get("class")
-                        or ""
+                        _get_user_class_name(user)
                     ),
 
                     "email": (
@@ -501,6 +678,11 @@ def register_main_routes(app):
 
                 "daily_goal_seconds": (
                     daily_goal_seconds
+                ),
+
+                "force_password_change": bool(
+                    user.get("force_password_change")
+                    or session.get("force_password_change")
                 ),
             }), 200
 

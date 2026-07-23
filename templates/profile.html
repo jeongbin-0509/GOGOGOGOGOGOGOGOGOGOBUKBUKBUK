@@ -262,6 +262,118 @@
             </form>
           </article>
 
+          <!-- 프로필 수정 -->
+          <article class="card profile-edit-card">
+            <div class="profile-card-header">
+              <div>
+                <p class="caption">EDIT PROFILE</p>
+                <h2 class="title">프로필 수정</h2>
+              </div>
+
+              <span
+                id="profileEditStatusBadge"
+                class="badge badge-idle"
+              >
+                수정 가능
+              </span>
+            </div>
+
+            <p class="profile-setting-description">
+              이름과 학번을 수정할 수 있습니다. 비밀번호는 변경할 때만 입력하세요.
+            </p>
+
+            <form id="profileEditForm">
+              <div class="profile-edit-grid">
+                <label class="profile-input-group">
+                  <span>이름</span>
+                  <input
+                    id="profileEditName"
+                    class="input"
+                    type="text"
+                    maxlength="20"
+                    autocomplete="name"
+                    required
+                  />
+                </label>
+
+                <label class="profile-input-group">
+                  <span>학번</span>
+                  <input
+                    id="profileEditStudentId"
+                    class="input"
+                    type="text"
+                    inputmode="numeric"
+                    minlength="5"
+                    maxlength="5"
+                    pattern="[0-9]{5}"
+                    autocomplete="off"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div class="password-edit-section">
+                <div class="password-edit-heading">
+                  <strong>비밀번호 변경</strong>
+                  <span>변경하지 않으려면 아래 입력칸을 비워 두세요.</span>
+                </div>
+
+                <div class="profile-password-grid">
+                  <label class="profile-input-group">
+                    <span>현재 비밀번호</span>
+                    <input
+                      id="profileCurrentPassword"
+                      class="input"
+                      type="password"
+                      maxlength="100"
+                      autocomplete="current-password"
+                    />
+                  </label>
+
+                  <label class="profile-input-group">
+                    <span>새 비밀번호</span>
+                    <input
+                      id="profileNewPassword"
+                      class="input"
+                      type="password"
+                      minlength="6"
+                      maxlength="100"
+                      autocomplete="new-password"
+                    />
+                  </label>
+
+                  <label class="profile-input-group">
+                    <span>새 비밀번호 확인</span>
+                    <input
+                      id="profileNewPasswordConfirm"
+                      class="input"
+                      type="password"
+                      minlength="6"
+                      maxlength="100"
+                      autocomplete="new-password"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div class="profile-edit-actions">
+                <p
+                  id="profileEditMessage"
+                  class="form-message"
+                  hidden
+                ></p>
+
+                <button
+                  id="profileEditSaveButton"
+                  class="button primary-button"
+                  type="submit"
+                >
+                  변경사항 저장
+                </button>
+              </div>
+            </form>
+          </article>
+
           <!-- 계정 관리 -->
           <article class="card profile-account-card">
             <div class="profile-card-header">
@@ -333,7 +445,7 @@
       </button>
     </nav>
 
-    <script src="{{ url_for('static', filename='js/profile.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/profile.js') }}?v=2"></script>
 
     <footer class="site-footer">
       made by ahn jeong bin (semicolon)

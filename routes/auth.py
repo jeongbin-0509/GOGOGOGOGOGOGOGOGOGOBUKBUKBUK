@@ -1,9 +1,15 @@
+from datetime import datetime, timezone
+import secrets
+import string
+
 from flask import jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from services.user_service import (
     create_user,
     find_user_by_username,
+    find_user_for_password_reset,
+    reset_user_password,
     student_id_exists,
     username_exists,
 )
@@ -15,7 +21,7 @@ def register_auth_routes(app):
     def login():
         if request.method == "GET":
             if "user_id" in session:
-                return redirect(url_for("login"))
+                return redirect(url_for("dashboard"))
             return render_template("login.html")
 
         try:
@@ -59,12 +65,28 @@ def register_auth_routes(app):
             session["username"] = user["username"]
             session["name"] = user["name"]
             session["student_id"] = user["student_id"]
+            session["force_password_change"] = bool(
+                user.get("force_password_change")
+            )
             session.permanent = remember
+
+            force_password_change = bool(
+                user.get("force_password_change")
+            )
 
             return jsonify({
                 "success": True,
-                "message": "로그인되었습니다.",
-                "redirect": url_for("dashboard"),
+                "message": (
+                    "임시 비밀번호로 로그인했습니다. 새 비밀번호를 설정해 주세요."
+                    if force_password_change
+                    else "로그인되었습니다."
+                ),
+                "force_password_change": force_password_change,
+                "redirect": (
+                    "/profile?force_password_change=1"
+                    if force_password_change
+                    else url_for("dashboard")
+                ),
             })
 
         except Exception as error:
@@ -78,7 +100,7 @@ def register_auth_routes(app):
     def signup():
         if request.method == "GET":
             if "user_id" in session:
-                return redirect(url_for("login"))
+                return redirect(url_for("dashboard"))
             return render_template("signup.html")
 
         try:
@@ -149,6 +171,120 @@ def register_auth_routes(app):
                 "success": False,
                 "message": "회원가입 처리 중 서버 오류가 발생했습니다.",
             }), 500
+
+    @app.route(
+        "/forgot-password",
+        methods=["GET"],
+        endpoint="forgot_password",
+    )
+    def forgot_password():
+        if "user_id" in session:
+            return redirect(url_for("dashboard"))
+
+        return render_template("forgot_password.html")
+
+    @app.route(
+        "/api/forgot-password",
+        methods=["POST"],
+        endpoint="forgot_password_api",
+    )
+    def forgot_password_api():
+        try:
+            data = get_request_data()
+
+            name = str(data.get("name") or "").strip()
+            student_id = str(
+                data.get("student_id") or ""
+            ).strip()
+            username = normalize_username(
+                data.get("username")
+            )
+
+            if not name or not student_id or not username:
+                return jsonify({
+                    "success": False,
+                    "message": "이름, 학번, 아이디를 모두 입력해 주세요.",
+                }), 400
+
+            if len(student_id) != 5 or not student_id.isdigit():
+                return jsonify({
+                    "success": False,
+                    "message": "학번 5자리를 정확하게 입력해 주세요.",
+                }), 400
+
+            # 같은 브라우저에서 지나치게 반복 발급하는 것을 방지한다.
+            now_timestamp = int(
+                datetime.now(timezone.utc).timestamp()
+            )
+            last_reset_at = int(
+                session.get("last_password_reset_at") or 0
+            )
+
+            if now_timestamp - last_reset_at < 60:
+                wait_seconds = 60 - (
+                    now_timestamp - last_reset_at
+                )
+                return jsonify({
+                    "success": False,
+                    "message": f"{wait_seconds}초 후 다시 시도해 주세요.",
+                }), 429
+
+            user = find_user_for_password_reset(
+                name=name,
+                student_id=student_id,
+                username=username,
+            )
+
+            if not user:
+                return jsonify({
+                    "success": False,
+                    "message": "입력한 회원 정보를 확인할 수 없습니다.",
+                }), 404
+
+            alphabet = (
+                string.ascii_uppercase
+                + string.ascii_lowercase
+                + string.digits
+            )
+            temporary_password = "".join(
+                secrets.choice(alphabet)
+                for _ in range(10)
+            )
+
+            updated_user = reset_user_password(
+                user_id=user["id"],
+                password_hash=generate_password_hash(
+                    temporary_password
+                ),
+            )
+
+            if not updated_user:
+                raise RuntimeError(
+                    "임시 비밀번호 저장 결과가 없습니다."
+                )
+
+            session["last_password_reset_at"] = (
+                now_timestamp
+            )
+
+            return jsonify({
+                "success": True,
+                "message": "임시 비밀번호가 발급되었습니다.",
+                "temporary_password": temporary_password,
+            }), 200
+
+        except Exception as error:
+            print("비밀번호 찾기 오류:", repr(error))
+            return jsonify({
+                "success": False,
+                "message": "임시 비밀번호 발급 중 서버 오류가 발생했습니다.",
+            }), 500
+
+    @app.route("/api/logout", methods=["POST"], endpoint="api_logout")
+    def api_logout():
+        session.clear()
+        return jsonify({"success": True})
+
 
     @app.route("/logout", endpoint="logout")
     def logout():
