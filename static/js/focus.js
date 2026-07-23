@@ -1,1270 +1,940 @@
-    (() => {
-      "use strict";
+(() => {
+    "use strict";
 
-      // =========================================================
-      // 기본 설정
-      // =========================================================
+    // =========================================================
+    // 1. Page Data / Config
+    // =========================================================
 
-      const pageData =
-        window.FOCUS_PAGE_DATA || {};
+    const pageData = window.FOCUS_PAGE_DATA || {};
 
-      const subject = String(
-        pageData.subject || "",
-      ).trim();
-
-      const todaySeconds = Math.max(
-        0,
-        Number(pageData.todaySeconds) || 0,
-      );
-
-      const goalSeconds = Math.max(
-        1,
-        Number(pageData.goalSeconds) || 28800,
-      );
-
-      const dashboardUrl = String(
-        pageData.dashboardUrl || "/dashboard",
-      );
-
-      const saveRecordUrl = String(
-        pageData.saveRecordUrl ||
-          "/api/study-records",
-      );
-
-      const STORAGE_KEY =
-        "activeStudySession";
-
-      const MINIMUM_SAVE_SECONDS = 10;
-
-      // =========================================================
-      // DOM
-      // =========================================================
-
-      const timerElement =
-        document.getElementById("focusTimer");
-
-      const startedAtElement =
-        document.getElementById(
-          "focusStartedAt",
+    function firstDefined(...values) {
+        return values.find(
+            value => value !== undefined && value !== null && value !== ""
         );
+    }
 
-      const statusBadge =
-        document.getElementById(
-          "focusStatusBadge",
-        );
-
-      const pauseButton =
-        document.getElementById(
-          "pauseStudyButton",
-        );
-
-      const stopButton =
-        document.getElementById(
-          "stopStudyButton",
-        );
-
-      const todayTotalElement =
-        document.getElementById(
-          "focusTodayTotal",
-        );
-
-      const gradeElement =
-        document.getElementById(
-          "focusGrade",
-        );
-
-      const goalRateElement =
-        document.getElementById(
-          "focusGoalRate",
-        );
-
-      const goalTextElement =
-        document.getElementById(
-          "focusGoalText",
-        );
-
-      const goalProgressElement =
-        document.getElementById(
-          "focusGoalProgress",
-        );
-
-      const goalProgressBar =
-        document.getElementById(
-          "focusGoalProgressBar",
-        );
-
-      const gradeMessageElement =
-        document.getElementById(
-          "focusGradeMessage",
-        );
-
-      const messageElement =
-        document.getElementById(
-          "focusMessage",
-        );
-
-      const backLink =
-        document.getElementById(
-          "focusBackLink",
-        );
-
-      const stopConfirmModal =
-        document.getElementById(
-          "stopConfirmModal",
-        );
-
-      const stopConfirmBackdrop =
-        document.getElementById(
-          "stopConfirmBackdrop",
-        );
-
-      const cancelStopButton =
-        document.getElementById(
-          "cancelStopButton",
-        );
-
-      const confirmStopButton =
-        document.getElementById(
-          "confirmStopButton",
-        );
-
-      // =========================================================
-      // 상태
-      // =========================================================
-
-      let session = null;
-      let timerInterval = null;
-      let isSaving = false;
-
-      // =========================================================
-      // 공통 함수
-      // =========================================================
-
-      function toSafeNumber(
-        value,
-        defaultValue = 0,
-      ) {
+    function toFiniteNumber(value, fallback = 0) {
         const number = Number(value);
-
-        if (!Number.isFinite(number)) {
-          return defaultValue;
-        }
-
-        return number;
-      }
-
-      function formatTime(totalSeconds) {
-        const safeSeconds = Math.max(
-          0,
-          Math.floor(
-            toSafeNumber(totalSeconds),
-          ),
-        );
-
-        const hours = String(
-          Math.floor(safeSeconds / 3600),
-        ).padStart(2, "0");
-
-        const minutes = String(
-          Math.floor(
-            (safeSeconds % 3600) / 60,
-          ),
-        ).padStart(2, "0");
-
-        const seconds = String(
-          safeSeconds % 60,
-        ).padStart(2, "0");
-
-        return `${hours}:${minutes}:${seconds}`;
-      }
-
-      function formatDateTime(value) {
-        const date = new Date(value);
-
-        if (
-          Number.isNaN(date.getTime())
-        ) {
-          return "-";
-        }
-
-        return date.toLocaleString("ko-KR", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-      }
-
-      // =========================================================
-      // 로컬 집중 세션
-      // =========================================================
-
-      function createNewSession() {
-        return {
-          subject,
-          startedAt: Date.now(),
-
-          // 일시정지를 시작한 시각
-          pausedAt: null,
-
-          // 지금까지 끝난 일시정지 시간의 합
-          totalPausedMilliseconds: 0,
-
-          // 현재 일시정지 상태
-          isPaused: false,
-
-          // 탭 이동 등으로 자동 정지되었는지
-          automaticallyPaused: false,
-        };
-      }
-
-      function normalizeSession(
-        savedSession,
-      ) {
-        if (
-          !savedSession ||
-          typeof savedSession !== "object"
-        ) {
-          return null;
-        }
-
-        const savedSubject = String(
-          savedSession.subject || "",
-        ).trim();
-
-        const startedAt = toSafeNumber(
-          savedSession.startedAt,
-          0,
-        );
-
-        if (
-          !savedSubject ||
-          !startedAt
-        ) {
-          return null;
-        }
-
-        if (savedSubject !== subject) {
-          return null;
-        }
-
-        const isPaused = Boolean(
-          savedSession.isPaused,
-        );
-
-        let pausedAt = null;
-
-        if (
-          savedSession.pausedAt !== null &&
-          savedSession.pausedAt !== undefined
-        ) {
-          pausedAt = toSafeNumber(
-            savedSession.pausedAt,
-            null,
-          );
-        }
-
-        /*
-         * 손상된 저장값에서 isPaused만 true이고 pausedAt이
-         * 없는 경우 현재 시각을 일시정지 시점으로 사용한다.
-         */
-        if (
-          isPaused &&
-          !pausedAt
-        ) {
-          pausedAt = Date.now();
-        }
-
-        return {
-          subject: savedSubject,
-          startedAt,
-          pausedAt,
-
-          totalPausedMilliseconds:
-            Math.max(
-              0,
-              toSafeNumber(
-                savedSession
-                  .totalPausedMilliseconds,
-                0,
-              ),
-            ),
-
-          isPaused,
-
-          automaticallyPaused:
-            Boolean(
-              savedSession
-                .automaticallyPaused,
-            ),
-        };
-      }
-
-      function loadSession() {
-        try {
-          const savedValue =
-            localStorage.getItem(
-              STORAGE_KEY,
-            );
-
-          if (!savedValue) {
-            return null;
-          }
-
-          const savedSession =
-            JSON.parse(savedValue);
-
-          const normalizedSession =
-            normalizeSession(savedSession);
-
-          /*
-           * 현재 과목과 다른 세션은 삭제하지 않는다.
-           * 대시보드에서 기존 과목 집중모드로 돌아갈 수 있어야 한다.
-           */
-          return normalizedSession;
-        } catch (error) {
-          console.error(
-            "집중 세션 불러오기 오류:",
-            error,
-          );
-
-          return null;
-        }
-      }
-
-      function saveSession() {
-        if (!session) {
-          return;
-        }
-
-        try {
-          localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify(session),
-          );
-        } catch (error) {
-          console.error(
-            "집중 세션 저장 오류:",
-            error,
-          );
-        }
-      }
-
-      function removeSession() {
-        try {
-          localStorage.removeItem(
-            STORAGE_KEY,
-          );
-        } catch (error) {
-          console.error(
-            "집중 세션 삭제 오류:",
-            error,
-          );
-        }
-      }
-
-      // =========================================================
-      // 측정 시간
-      // =========================================================
-
-      function getElapsedMilliseconds() {
-        if (!session) {
-          return 0;
-        }
-
-        const measurementEnd =
-          session.isPaused &&
-          session.pausedAt
-            ? session.pausedAt
-            : Date.now();
-
-        const elapsedMilliseconds =
-          measurementEnd -
-          session.startedAt -
-          session.totalPausedMilliseconds;
-
-        return Math.max(
-          0,
-          elapsedMilliseconds,
-        );
-      }
-
-      function getElapsedSeconds() {
-        return Math.floor(
-          getElapsedMilliseconds() / 1000,
-        );
-      }
-
-      // =========================================================
-      // 공부 등급
-      // =========================================================
-
-      function calculateGrade(
-        totalStudySeconds,
-      ) {
-        if (
-          totalStudySeconds >=
-          12 * 3600
-        ) {
-          return {
-            grade: 1,
-            message:
-              "오늘 12시간 이상 공부했습니다. 1등급을 달성했습니다.",
-          };
-        }
-
-        if (
-          totalStudySeconds >=
-          8 * 3600
-        ) {
-          return {
-            grade: 2,
-            message:
-              "현재 2등급입니다. 1등급까지 조금만 더 집중해 보세요.",
-          };
-        }
-
-        if (
-          totalStudySeconds >=
-          5 * 3600
-        ) {
-          return {
-            grade: 3,
-            message:
-              "현재 3등급입니다. 꾸준히 공부시간을 늘리고 있습니다.",
-          };
-        }
-
-        if (
-          totalStudySeconds >=
-          3 * 3600
-        ) {
-          return {
-            grade: 4,
-            message:
-              "현재 4등급입니다. 3등급까지 계속 집중해 보세요.",
-          };
-        }
-
-        return {
-          grade: 5,
-          message:
-            "3시간 이상 공부하면 다음 등급으로 올라갈 수 있습니다.",
-        };
-      }
-
-      // =========================================================
-      // 메시지
-      // =========================================================
-
-      function showMessage(
-        message,
-        type = "error",
-      ) {
-        if (!messageElement) {
-          return;
-        }
-
-        messageElement.textContent =
-          String(message || "");
-
-        messageElement.dataset.type =
-          type;
-
-        messageElement.hidden = false;
-      }
-
-      function hideMessage() {
-        if (!messageElement) {
-          return;
-        }
-
-        messageElement.textContent = "";
-        messageElement.hidden = true;
-
-        delete messageElement.dataset.type;
-      }
-
-      // =========================================================
-      // UI 갱신
-      // =========================================================
-
-      function updateStatusUI() {
-        if (
-          !statusBadge ||
-          !pauseButton ||
-          !session
-        ) {
-          return;
-        }
-
-        statusBadge.classList.remove(
-          "focus-status-running",
-          "focus-status-pause",
-        );
-
-        if (session.isPaused) {
-          statusBadge.classList.add(
-            "focus-status-pause",
-          );
-
-          if (
-            session.automaticallyPaused
-          ) {
-            statusBadge.textContent =
-              "화면 이탈로 일시정지";
-          } else {
-            statusBadge.textContent =
-              "일시정지";
-          }
-
-          pauseButton.textContent =
-            "다시 시작";
-
-          return;
-        }
-
-        statusBadge.classList.add(
-          "focus-status-running",
-        );
-
-        statusBadge.textContent =
-          "공부 중";
-
-        pauseButton.textContent =
-          "일시정지";
-      }
-
-      function updateProgressUI(
-        totalStudySeconds,
-      ) {
-        const safeTotalSeconds =
-          Math.max(
+        return Number.isFinite(number) ? number : fallback;
+    }
+
+    const CONFIG = {
+        subject: String(
+            firstDefined(
+                pageData.subject,
+                pageData.studySubject,
+                document.body?.dataset?.subject,
+                "기타"
+            )
+        ),
+
+        todaySeconds: Math.max(
             0,
-            Math.floor(
-              toSafeNumber(
-                totalStudySeconds,
-              ),
-            ),
-          );
+            toFiniteNumber(
+                firstDefined(
+                    pageData.todaySeconds,
+                    pageData.today_seconds,
+                    pageData.todayStudySeconds,
+                    0
+                )
+            )
+        ),
 
-        const goalRate = Math.min(
-          100,
-          Math.round(
-            (
-              safeTotalSeconds /
-              goalSeconds
-            ) * 100,
-          ),
-        );
+        goalSeconds: Math.max(
+            1,
+            toFiniteNumber(
+                firstDefined(
+                    pageData.goalSeconds,
+                    pageData.goal_seconds,
+                    pageData.dailyGoalSeconds,
+                    8 * 60 * 60
+                )
+            )
+        ),
 
-        const currentMinutes =
-          Math.floor(
-            safeTotalSeconds / 60,
-          );
+        dashboardUrl: String(
+            firstDefined(
+                pageData.dashboardUrl,
+                pageData.dashboard_url,
+                "/"
+            )
+        ),
 
-        const goalMinutes =
-          Math.floor(
-            goalSeconds / 60,
-          );
+        saveRecordUrl: String(
+            firstDefined(
+                pageData.saveRecordUrl,
+                pageData.save_record_url,
+                "/api/study-records"
+            )
+        ),
 
-        if (todayTotalElement) {
-          todayTotalElement.textContent =
-            formatTime(
-              safeTotalSeconds,
+        storageKey: String(
+            firstDefined(
+                pageData.storageKey,
+                pageData.storage_key,
+                "activeStudySession"
+            )
+        ),
+
+        minimumSaveSeconds: Math.max(
+            0,
+            toFiniteNumber(
+                firstDefined(
+                    pageData.minimumSaveSeconds,
+                    pageData.minimum_save_seconds,
+                    1
+                )
+            )
+        )
+    };
+
+    // =========================================================
+    // 2. DOM
+    // =========================================================
+
+    function byId(...ids) {
+        for (const id of ids) {
+            const element = document.getElementById(id);
+            if (element) return element;
+        }
+        return null;
+    }
+
+    const DOM = {
+        timer: byId("focusTimer", "focus-timer"),
+        todayTotal: byId("focusTodayTotal", "focus-today-total"),
+        goalText: byId("focusGoalText", "focus-goal-text"),
+        goalRate: byId("focusGoalRate", "focus-goal-rate"),
+        goalProgress: byId("focusGoalProgress", "focus-goal-progress"),
+        goalProgressBar: byId(
+            "focusGoalProgressBar",
+            "focus-goal-progress-bar"
+        ),
+        grade: byId("focusGrade", "focus-grade"),
+        gradeMessage: byId(
+            "focusGradeMessage",
+            "focus-grade-message"
+        ),
+        status: byId(
+            "focusStatus",
+            "focus-status",
+            "studyStatus",
+            "study-status"
+        ),
+
+        dashboardButton: byId(
+            "dashboardButton",
+            "dashboardBtn",
+            "backButton",
+            "backBtn",
+            "focusDashboardButton",
+            "focus-dashboard-button"
+        ),
+
+        dashboardLink: byId(
+            "dashboardLink",
+            "backLink",
+            "focusDashboardLink",
+            "focus-dashboard-link"
+        ),
+
+        stopButton: byId(
+            "stopStudyButton",
+            "stopButton",
+            "stopBtn",
+            "focusStopButton",
+            "focus-stop-button"
+        ),
+
+        stopModal: byId(
+            "stopModal",
+            "stopStudyModal",
+            "focusStopModal",
+            "focus-stop-modal"
+        ),
+
+        stopBackdrop: byId(
+            "stopBackdrop",
+            "modalBackdrop",
+            "focusStopBackdrop",
+            "focus-stop-backdrop"
+        ),
+
+        cancelStop: byId(
+            "cancelStop",
+            "cancelStopButton",
+            "stopCancelButton",
+            "focusCancelStop",
+            "focus-cancel-stop"
+        ),
+
+        confirmStop: byId(
+            "confirmStop",
+            "confirmStopButton",
+            "stopConfirmButton",
+            "focusConfirmStop",
+            "focus-confirm-stop"
+        ),
+
+        message: byId(
+            "focusMessage",
+            "focus-message",
+            "studyMessage",
+            "study-message"
+        )
+    };
+
+    // =========================================================
+    // 3. State
+    // =========================================================
+
+    let session = null;
+    let timerInterval = null;
+    let isSaving = false;
+    let eventsBound = false;
+
+    // =========================================================
+    // 4. Utilities
+    // =========================================================
+
+    function formatTime(totalSeconds) {
+        const seconds = Math.max(0, Math.floor(toFiniteNumber(totalSeconds)));
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainingSeconds = seconds % 60;
+
+        return [
+            String(hours).padStart(2, "0"),
+            String(minutes).padStart(2, "0"),
+            String(remainingSeconds).padStart(2, "0")
+        ].join(":");
+    }
+
+    function setText(element, value) {
+        if (element) {
+            element.textContent = String(value);
+        }
+    }
+
+    function showElement(element) {
+        if (!element) return;
+        element.hidden = false;
+        element.classList.add("is-open");
+        element.setAttribute("aria-hidden", "false");
+    }
+
+    function hideElement(element) {
+        if (!element) return;
+        element.hidden = true;
+        element.classList.remove("is-open");
+        element.setAttribute("aria-hidden", "true");
+    }
+
+    function showMessage(message, type = "error") {
+        if (!DOM.message) {
+            if (type === "error") {
+                console.error(message);
+            } else {
+                console.log(message);
+            }
+            return;
+        }
+
+        DOM.message.hidden = false;
+        DOM.message.dataset.type = type;
+        DOM.message.textContent = String(message);
+    }
+
+    function hideMessage() {
+        if (!DOM.message) return;
+        DOM.message.hidden = true;
+        DOM.message.textContent = "";
+        delete DOM.message.dataset.type;
+    }
+
+    async function parseResponse(response) {
+        const contentType = response.headers.get("content-type") || "";
+
+        if (contentType.includes("application/json")) {
+            return response.json();
+        }
+
+        const text = await response.text();
+
+        return {
+            success: response.ok,
+            message: text || null
+        };
+    }
+
+    // =========================================================
+    // 5. Study Session
+    // =========================================================
+
+    class StudySession {
+        constructor(subject) {
+            this.subject = subject;
+            this.startedAt = Date.now();
+            this.isPaused = false;
+            this.pausedAt = null;
+            this.totalPausedMilliseconds = 0;
+            this.automaticallyPaused = false;
+        }
+
+        get elapsedMilliseconds() {
+            const endTime =
+                this.isPaused && this.pausedAt
+                    ? this.pausedAt
+                    : Date.now();
+
+            return Math.max(
+                0,
+                endTime -
+                    this.startedAt -
+                    this.totalPausedMilliseconds
             );
         }
 
-        if (goalRateElement) {
-          goalRateElement.textContent =
-            `${goalRate}%`;
+        get elapsedSeconds() {
+            return Math.floor(this.elapsedMilliseconds / 1000);
         }
 
-        if (goalTextElement) {
-          goalTextElement.textContent =
-            `${currentMinutes} / ${goalMinutes}분`;
+        pause(automaticallyPaused = false) {
+            if (this.isPaused) return;
+
+            this.isPaused = true;
+            this.pausedAt = Date.now();
+            this.automaticallyPaused = automaticallyPaused;
         }
 
-        if (goalProgressElement) {
-          goalProgressElement.style.width =
-            `${goalRate}%`;
+        resume() {
+            if (!this.isPaused) return;
+
+            if (this.pausedAt) {
+                this.totalPausedMilliseconds += Math.max(
+                    0,
+                    Date.now() - this.pausedAt
+                );
+            }
+
+            this.isPaused = false;
+            this.pausedAt = null;
+            this.automaticallyPaused = false;
         }
 
-        if (goalProgressBar) {
-          goalProgressBar.setAttribute(
-            "aria-valuenow",
-            String(goalRate),
-          );
+        toJSON() {
+            return {
+                version: 1,
+                subject: this.subject,
+                startedAt: this.startedAt,
+                isPaused: this.isPaused,
+                pausedAt: this.pausedAt,
+                totalPausedMilliseconds:
+                    this.totalPausedMilliseconds,
+                automaticallyPaused: this.automaticallyPaused
+            };
         }
 
-        const gradeInfo =
-          calculateGrade(
-            safeTotalSeconds,
-          );
+        static fromJSON(data) {
+            if (!data || typeof data !== "object") {
+                return null;
+            }
 
-        if (gradeElement) {
-          gradeElement.textContent =
-            `${gradeInfo.grade}등급`;
-        }
-
-        if (gradeMessageElement) {
-          gradeMessageElement.textContent =
-            gradeInfo.message;
-        }
-      }
-
-      function updateTimerUI() {
-        if (!session) {
-          return;
-        }
-
-        const elapsedSeconds =
-          getElapsedSeconds();
-
-        if (timerElement) {
-          timerElement.textContent =
-            formatTime(elapsedSeconds);
-        }
-
-        updateProgressUI(
-          todaySeconds +
-            elapsedSeconds,
-        );
-      }
-
-      // =========================================================
-      // 타이머 반복 실행
-      // =========================================================
-
-      function stopTimerInterval() {
-        if (timerInterval === null) {
-          return;
-        }
-
-        window.clearInterval(
-          timerInterval,
-        );
-
-        timerInterval = null;
-      }
-
-      function startTimerInterval() {
-        stopTimerInterval();
-        updateTimerUI();
-
-        if (
-          !session ||
-          session.isPaused ||
-          isSaving
-        ) {
-          return;
-        }
-
-        timerInterval =
-          window.setInterval(
-            updateTimerUI,
-            1000,
-          );
-      }
-
-      // =========================================================
-      // 일시정지 및 재개
-      // =========================================================
-
-      function pauseStudy({
-        automatic = false,
-      } = {}) {
-        if (
-          isSaving ||
-          !session ||
-          session.isPaused
-        ) {
-          return;
-        }
-
-        session.isPaused = true;
-        session.pausedAt = Date.now();
-
-        session.automaticallyPaused =
-          Boolean(automatic);
-
-        saveSession();
-        stopTimerInterval();
-
-        updateStatusUI();
-        updateTimerUI();
-      }
-
-      function resumeStudy({
-        automatic = false,
-      } = {}) {
-        if (
-          isSaving ||
-          !session ||
-          !session.isPaused
-        ) {
-          return;
-        }
-
-        /*
-         * 자동 복귀는 자동으로 정지된 세션에만 적용한다.
-         * 사용자가 직접 일시정지한 세션은 자동으로 재개하지 않는다.
-         */
-        if (
-          automatic &&
-          !session.automaticallyPaused
-        ) {
-          return;
-        }
-
-        const now = Date.now();
-
-        if (session.pausedAt) {
-          session
-            .totalPausedMilliseconds +=
-            Math.max(
-              0,
-              now -
-                session.pausedAt,
+            const restored = new StudySession(
+                String(data.subject || CONFIG.subject)
             );
+
+            restored.startedAt = toFiniteNumber(
+                data.startedAt,
+                Date.now()
+            );
+
+            restored.isPaused = Boolean(data.isPaused);
+
+            restored.pausedAt =
+                data.pausedAt === null ||
+                data.pausedAt === undefined
+                    ? null
+                    : toFiniteNumber(data.pausedAt, null);
+
+            restored.totalPausedMilliseconds = Math.max(
+                0,
+                toFiniteNumber(
+                    firstDefined(
+                        data.totalPausedMilliseconds,
+                        data.totalPaused,
+                        0
+                    )
+                )
+            );
+
+            restored.automaticallyPaused = Boolean(
+                data.automaticallyPaused
+            );
+
+            if (restored.isPaused && !restored.pausedAt) {
+                restored.pausedAt = Date.now();
+            }
+
+            return restored;
+        }
+    }
+
+    // =========================================================
+    // 6. Local Storage
+    // =========================================================
+
+    function saveSession() {
+        if (!session) return;
+
+        try {
+            localStorage.setItem(
+                CONFIG.storageKey,
+                JSON.stringify(session.toJSON())
+            );
+        } catch (error) {
+            console.error("공부 세션 저장 실패:", error);
+        }
+    }
+
+    function loadSession() {
+        try {
+            const raw = localStorage.getItem(CONFIG.storageKey);
+
+            if (!raw) return null;
+
+            const data = JSON.parse(raw);
+
+            if (
+                data.subject &&
+                String(data.subject) !== CONFIG.subject
+            ) {
+                return null;
+            }
+
+            return StudySession.fromJSON(data);
+        } catch (error) {
+            console.error("공부 세션 복원 실패:", error);
+            return null;
+        }
+    }
+
+    function removeSession() {
+        try {
+            localStorage.removeItem(CONFIG.storageKey);
+        } catch (error) {
+            console.error("공부 세션 삭제 실패:", error);
+        }
+    }
+
+    // =========================================================
+    // 7. Time / Grade
+    // =========================================================
+
+    function getCurrentStudySeconds() {
+        return session ? session.elapsedSeconds : 0;
+    }
+
+    function getTodayStudySeconds() {
+        return CONFIG.todaySeconds + getCurrentStudySeconds();
+    }
+
+    function calculateGrade(seconds) {
+        if (seconds >= 12 * 3600) {
+            return {
+                grade: 1,
+                message: "오늘 12시간 이상 공부했습니다."
+            };
         }
 
-        session.pausedAt = null;
-        session.isPaused = false;
-
-        session.automaticallyPaused =
-          false;
-
-        saveSession();
-
-        updateStatusUI();
-        updateTimerUI();
-        startTimerInterval();
-      }
-
-      function togglePause() {
-        if (
-          isSaving ||
-          !session
-        ) {
-          return;
+        if (seconds >= 8 * 3600) {
+            return {
+                grade: 2,
+                message: "현재 2등급입니다."
+            };
         }
 
-        hideMessage();
+        if (seconds >= 5 * 3600) {
+            return {
+                grade: 3,
+                message: "현재 3등급입니다."
+            };
+        }
+
+        if (seconds >= 3 * 3600) {
+            return {
+                grade: 4,
+                message: "현재 4등급입니다."
+            };
+        }
+
+        return {
+            grade: 5,
+            message: "3시간 이상 공부하면 4등급입니다."
+        };
+    }
+
+    // =========================================================
+    // 8. UI
+    // =========================================================
+
+    function updateStatusUI() {
+        if (!session || !DOM.status) return;
 
         if (session.isPaused) {
-          resumeStudy({
-            automatic: false,
-          });
+            DOM.status.textContent = "일시정지";
+            DOM.status.classList.remove(
+                "focus-status-running",
+                "is-running"
+            );
+            DOM.status.classList.add(
+                "focus-status-paused",
+                "is-paused"
+            );
         } else {
-          pauseStudy({
-            automatic: false,
-          });
+            DOM.status.textContent = "공부 중";
+            DOM.status.classList.remove(
+                "focus-status-paused",
+                "is-paused"
+            );
+            DOM.status.classList.add(
+                "focus-status-running",
+                "is-running"
+            );
         }
-      }
+    }
 
-      // =========================================================
-      // 백그라운드 및 화면 잠금 처리
-      // =========================================================
+    function updateTimerUI() {
+        if (!session) return;
 
-      function handleVisibilityChange() {
-        if (
-          !session ||
-          isSaving
-        ) {
-          return;
+        const currentSeconds = getCurrentStudySeconds();
+        const todaySeconds = getTodayStudySeconds();
+        const goalSeconds = CONFIG.goalSeconds;
+
+        const rawPercent =
+            goalSeconds > 0
+                ? (todaySeconds / goalSeconds) * 100
+                : 0;
+
+        const percent = Math.max(
+            0,
+            Math.min(100, Math.round(rawPercent))
+        );
+
+        setText(DOM.timer, formatTime(currentSeconds));
+        setText(DOM.todayTotal, formatTime(todaySeconds));
+
+        setText(
+            DOM.goalText,
+            `${formatTime(todaySeconds)} / ${formatTime(
+                goalSeconds
+            )}`
+        );
+
+        setText(DOM.goalRate, `${percent}%`);
+
+        const progressElement =
+            DOM.goalProgressBar || DOM.goalProgress;
+
+        if (progressElement) {
+            progressElement.style.width = `${percent}%`;
+            progressElement.setAttribute(
+                "aria-valuenow",
+                String(percent)
+            );
+            progressElement.setAttribute(
+                "aria-valuemin",
+                "0"
+            );
+            progressElement.setAttribute(
+                "aria-valuemax",
+                "100"
+            );
         }
 
-        if (
-          document.visibilityState ===
-          "hidden"
-        ) {
-          /*
-           * 백그라운드에서는 화면 표시용 반복만 멈춘다.
-           * 공부시간은 startedAt과 현재 시각의 차이로 계산되므로
-           * 세션 자체는 계속 진행된다.
-           */
-          stopTimerInterval();
-          saveSession();
-          return;
-        }
+        const grade = calculateGrade(todaySeconds);
 
+        setText(DOM.grade, `${grade.grade}등급`);
+        setText(DOM.gradeMessage, grade.message);
         updateStatusUI();
+    }
+
+    // =========================================================
+    // 9. Timer
+    // =========================================================
+
+    function stopTimer() {
+        if (timerInterval !== null) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+    }
+
+    function startTimer() {
+        stopTimer();
         updateTimerUI();
 
-        if (!session.isPaused) {
-          startTimerInterval();
-        }
-      }
+        timerInterval = window.setInterval(() => {
+            updateTimerUI();
 
-      function handlePageHide() {
-        if (
-          !session ||
-          isSaving
-        ) {
-          return;
-        }
+            if (session && !session.isPaused) {
+                saveSession();
+            }
+        }, 1000);
+    }
 
-        /*
-         * 화면 잠금, 다른 앱 이동, 새로고침 시에도
-         * 공부 세션은 일시정지하지 않는다.
-         */
-        stopTimerInterval();
+    function pauseStudy(automaticallyPaused = false) {
+        if (!session || session.isPaused) return;
+
+        session.pause(automaticallyPaused);
         saveSession();
-      }
-
-      function handlePageShow() {
-        if (
-          !session ||
-          isSaving
-        ) {
-          return;
-        }
-
-        updateStatusUI();
         updateTimerUI();
+    }
 
-        if (!session.isPaused) {
-          startTimerInterval();
-        }
-      }
+    function resumeStudy() {
+        if (!session || !session.isPaused) return;
 
-      function handleWindowFocus() {
-        if (
-          !session ||
-          isSaving
-        ) {
-          return;
-        }
-
-        updateStatusUI();
+        session.resume();
+        saveSession();
         updateTimerUI();
+    }
 
-        if (!session.isPaused) {
-          startTimerInterval();
-        }
-      }
+    // =========================================================
+    // 10. Dashboard
+    // =========================================================
 
-      // =========================================================
-      // 종료 모달
-      // =========================================================
+    function moveDashboard(event) {
+        event?.preventDefault();
 
-      function openStopModal() {
-        if (isSaving) {
-          return;
-        }
+        if (isSaving) return;
 
+        // 대시보드로 이동해도 공부시간은 계속 흐른다.
+        // startedAt 기준으로 계산하므로 브라우저 종료, 화면 꺼짐,
+        // 기기 재부팅 후 다시 접속해도 지난 시간이 반영된다.
+        saveSession();
+
+        window.location.href = CONFIG.dashboardUrl;
+    }
+
+    // =========================================================
+    // 11. Stop Modal
+    // =========================================================
+
+    function openStopModal(event) {
+        event?.preventDefault();
         hideMessage();
 
-        if (!stopConfirmModal) {
-          stopStudy();
-          return;
+        if (!DOM.stopModal) {
+            const confirmed = window.confirm(
+                "공부를 종료하고 기록을 저장할까요?"
+            );
+
+            if (confirmed) {
+                saveStudyRecord();
+            }
+
+            return;
         }
 
-        stopConfirmModal.hidden =
-          false;
+        showElement(DOM.stopModal);
+        document.body.style.overflow = "hidden";
 
-        document.body.style.overflow =
-          "hidden";
+        DOM.confirmStop?.focus();
+    }
 
-        window.setTimeout(() => {
-          confirmStopButton?.focus();
-        }, 0);
-      }
+    function closeStopModal(event) {
+        event?.preventDefault();
 
-      function closeStopModal() {
-        if (
-          !stopConfirmModal ||
-          isSaving
-        ) {
-          return;
-        }
+        hideElement(DOM.stopModal);
+        document.body.style.overflow = "";
+        DOM.stopButton?.focus();
+    }
 
-        stopConfirmModal.hidden =
-          true;
+    // =========================================================
+    // 12. API Save
+    // =========================================================
 
-        document.body.style.overflow =
-          "";
+    async function saveStudyRecord(event) {
+        event?.preventDefault();
 
-        stopButton?.focus();
-      }
+        if (!session || isSaving) return;
 
-      function setSavingState(saving) {
-        isSaving = Boolean(saving);
-
-        if (pauseButton) {
-          pauseButton.disabled =
-            isSaving;
-        }
-
-        if (stopButton) {
-          stopButton.disabled =
-            isSaving;
-        }
-
-        if (cancelStopButton) {
-          cancelStopButton.disabled =
-            isSaving;
-        }
-
-        if (confirmStopButton) {
-          confirmStopButton.disabled =
-            isSaving;
-
-          confirmStopButton.textContent =
-            isSaving
-              ? "저장 중..."
-              : "종료하고 저장";
-        }
-      }
-
-      // =========================================================
-      // 공부 종료 및 DB 저장
-      // =========================================================
-
-      async function stopStudy() {
-        if (
-          isSaving ||
-          !session
-        ) {
-          return;
-        }
-
+        isSaving = true;
         hideMessage();
 
-        const durationSeconds =
-          getElapsedSeconds();
+        const wasPaused = session.isPaused;
 
-        if (
-          durationSeconds <
-          MINIMUM_SAVE_SECONDS
-        ) {
-          closeStopModal();
-
-          showMessage(
-            `${MINIMUM_SAVE_SECONDS}초 이상 공부해야 기록을 저장할 수 있습니다.`,
-          );
-
-          return;
+        if (!wasPaused) {
+            pauseStudy(false);
         }
 
-        setSavingState(true);
-        stopTimerInterval();
+        stopTimer();
 
-        const endedAtTimestamp =
-          session.isPaused &&
-          session.pausedAt
-            ? session.pausedAt
-            : Date.now();
+        const durationSeconds = getCurrentStudySeconds();
+
+        if (
+            durationSeconds <
+            CONFIG.minimumSaveSeconds
+        ) {
+            showMessage(
+                `${CONFIG.minimumSaveSeconds}초 이상 공부해야 저장됩니다.`
+            );
+
+            isSaving = false;
+
+            if (!wasPaused) {
+                resumeStudy();
+            }
+
+            startTimer();
+            return;
+        }
+
+        const endedAt = new Date();
+        const startedAt = new Date(session.startedAt);
 
         const requestBody = {
-          subject: session.subject,
+            subject: CONFIG.subject,
 
-          duration_seconds:
-            durationSeconds,
+            // 백엔드 구현마다 이름이 다를 수 있어 두 형식을 함께 전송한다.
+            duration_seconds: durationSeconds,
+            durationSeconds: durationSeconds,
 
-          started_at:
-            new Date(
-              session.startedAt,
-            ).toISOString(),
+            started_at: startedAt.toISOString(),
+            startedAt: startedAt.toISOString(),
 
-          ended_at:
-            new Date(
-              endedAtTimestamp,
-            ).toISOString(),
+            ended_at: endedAt.toISOString(),
+            endedAt: endedAt.toISOString()
         };
 
         try {
-          const response = await fetch(
-            saveRecordUrl,
-            {
-              method: "POST",
-
-              credentials:
-                "same-origin",
-
-              headers: {
-                Accept:
-                  "application/json",
-
-                "Content-Type":
-                  "application/json",
-              },
-
-              body:
-                JSON.stringify(
-                  requestBody,
-                ),
-            },
-          );
-
-          let result = {};
-
-          try {
-            result =
-              await response.json();
-          } catch (error) {
-            console.error(
-              "공부 기록 응답 변환 오류:",
-              error,
-            );
-          }
-
-          if (response.status === 401) {
-            throw new Error(
-              "로그인이 만료되었습니다. 다시 로그인해 주세요.",
-            );
-          }
-
-          if (!response.ok) {
-            throw new Error(
-              result.message ||
-                result.error ||
-                "공부 기록 저장에 실패했습니다.",
-            );
-          }
-
-          /*
-           * 서버 저장 성공 후에만 진행 중 세션을 삭제한다.
-           */
-          removeSession();
-
-          window.location.replace(
-            dashboardUrl,
-          );
-        } catch (error) {
-          console.error(
-            "공부 기록 저장 오류:",
-            error,
-          );
-
-          if (stopConfirmModal) {
-            stopConfirmModal.hidden =
-              true;
-          }
-
-          document.body.style.overflow =
-            "";
-
-          showMessage(
-            error.message ||
-              "공부 기록 저장 중 오류가 발생했습니다.",
-          );
-
-          setSavingState(false);
-
-          /*
-           * 저장 실패 시 기존 집중 세션을 유지한다.
-           */
-          saveSession();
-          updateStatusUI();
-          updateTimerUI();
-
-          if (!session.isPaused) {
-            startTimerInterval();
-          }
-        }
-      }
-
-      // =========================================================
-      // 대시보드 이동
-      // =========================================================
-
-      function handleBackNavigation(
-        event,
-      ) {
-        event.preventDefault();
-
-        if (isSaving) {
-          return;
-        }
-
-        const shouldLeave =
-          window.confirm(
-            "집중모드를 나가면 타이머가 일시정지됩니다. 대시보드로 이동할까요?",
-          );
-
-        if (!shouldLeave) {
-          return;
-        }
-
-        /*
-         * 사용자가 대시보드 이동을 직접 선택했으므로
-         * 수동 일시정지 상태로 남긴다.
-         *
-         * 따라서 대시보드에서 다시 집중모드로 돌아와도
-         * 자동 재개되지 않는다.
-         */
-        if (!session.isPaused) {
-          pauseStudy({
-            automatic: false,
-          });
-        } else {
-          session.automaticallyPaused =
-            false;
-
-          saveSession();
-          updateStatusUI();
-        }
-
-        window.location.href =
-          dashboardUrl;
-      }
-
-      // =========================================================
-      // 키보드
-      // =========================================================
-
-      function handleKeyDown(event) {
-        if (
-          event.key !== "Escape" ||
-          !stopConfirmModal ||
-          stopConfirmModal.hidden ||
-          isSaving
-        ) {
-          return;
-        }
-
-        closeStopModal();
-      }
-
-      // =========================================================
-      // 이벤트 연결
-      // =========================================================
-
-      function bindEvents() {
-        pauseButton?.addEventListener(
-          "click",
-          togglePause,
-        );
-
-        stopButton?.addEventListener(
-          "click",
-          openStopModal,
-        );
-
-        cancelStopButton
-          ?.addEventListener(
-            "click",
-            closeStopModal,
-          );
-
-        confirmStopButton
-          ?.addEventListener(
-            "click",
-            stopStudy,
-          );
-
-        stopConfirmBackdrop
-          ?.addEventListener(
-            "click",
-            () => {
-              if (!isSaving) {
-                closeStopModal();
-              }
-            },
-          );
-
-        backLink?.addEventListener(
-          "click",
-          handleBackNavigation,
-        );
-
-        document.addEventListener(
-          "keydown",
-          handleKeyDown,
-        );
-
-        document.addEventListener(
-          "visibilitychange",
-          handleVisibilityChange,
-        );
-
-        window.addEventListener(
-          "pagehide",
-          handlePageHide,
-        );
-
-        window.addEventListener(
-          "pageshow",
-          handlePageShow,
-        );
-
-        window.addEventListener(
-          "focus",
-          handleWindowFocus,
-        );
-
-        /*
-         * 브라우저 탭을 닫거나 새로고침하기 전에
-         * 마지막 세션 상태를 저장한다.
-         */
-        window.addEventListener(
-          "beforeunload",
-          () => {
-            if (!isSaving) {
-              saveSession();
+            if (DOM.confirmStop) {
+                DOM.confirmStop.disabled = true;
             }
-          },
-        );
-      }
 
-      // =========================================================
-      // 초기화
-      // =========================================================
+            const response = await fetch(
+                CONFIG.saveRecordUrl,
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json"
+                    },
+                    body: JSON.stringify(requestBody)
+                }
+            );
 
-      function initializePage() {
-        if (!subject) {
-          window.location.replace(
-            dashboardUrl,
-          );
+            const result = await parseResponse(response);
 
-          return;
+            if (!response.ok || result?.success === false) {
+                throw new Error(
+                    result?.message ||
+                        result?.error ||
+                        `공부 기록 저장에 실패했습니다. (${response.status})`
+                );
+            }
+
+            removeSession();
+            closeStopModal();
+
+            window.location.replace(CONFIG.dashboardUrl);
+        } catch (error) {
+            console.error("공부 기록 저장 실패:", error);
+
+            showMessage(
+                error instanceof Error
+                    ? error.message
+                    : "공부 기록 저장 중 오류가 발생했습니다."
+            );
+
+            if (!wasPaused) {
+                resumeStudy();
+            }
+
+            startTimer();
+        } finally {
+            isSaving = false;
+
+            if (DOM.confirmStop) {
+                DOM.confirmStop.disabled = false;
+            }
         }
+    }
+
+    // =========================================================
+    // 13. Page Lifecycle
+    // =========================================================
+
+    function handleVisibilityChange() {
+        if (!session) return;
+
+        if (document.hidden) {
+            saveSession();
+            return;
+        }
+
+        const storedSession = loadSession();
+
+        if (storedSession) {
+            session = storedSession;
+        }
+
+        updateTimerUI();
+    }
+
+    function handlePageShow() {
+        const storedSession = loadSession();
+
+        if (storedSession) {
+            session = storedSession;
+        }
+
+        updateTimerUI();
+        startTimer();
+    }
+
+    function handlePageHide() {
+        saveSession();
+    }
+
+    function handleBeforeUnload() {
+        saveSession();
+    }
+
+    function handleStorageChange(event) {
+        if (event.key !== CONFIG.storageKey) return;
+
+        if (!event.newValue) {
+            return;
+        }
+
+        try {
+            const data = JSON.parse(event.newValue);
+            const restored = StudySession.fromJSON(data);
+
+            if (restored) {
+                session = restored;
+                updateTimerUI();
+            }
+        } catch (error) {
+            console.error("다른 탭의 공부 세션 동기화 실패:", error);
+        }
+    }
+
+    // =========================================================
+    // 14. Events
+    // =========================================================
+
+    function bindEvents() {
+        if (eventsBound) return;
+        eventsBound = true;
+
+        DOM.dashboardButton?.addEventListener(
+            "click",
+            moveDashboard
+        );
+
+        DOM.dashboardLink?.addEventListener(
+            "click",
+            moveDashboard
+        );
+
+        DOM.stopButton?.addEventListener(
+            "click",
+            openStopModal
+        );
+
+        DOM.cancelStop?.addEventListener(
+            "click",
+            closeStopModal
+        );
+
+        DOM.stopBackdrop?.addEventListener(
+            "click",
+            closeStopModal
+        );
+
+        DOM.confirmStop?.addEventListener(
+            "click",
+            saveStudyRecord
+        );
+
+        DOM.stopModal?.addEventListener("click", event => {
+            if (event.target === DOM.stopModal) {
+                closeStopModal(event);
+            }
+        });
+
+        document.addEventListener(
+            "keydown",
+            event => {
+                if (
+                    event.key === "Escape" &&
+                    DOM.stopModal &&
+                    !DOM.stopModal.hidden
+                ) {
+                    closeStopModal(event);
+                }
+            }
+        );
+
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange
+        );
+
+        window.addEventListener(
+            "pageshow",
+            handlePageShow
+        );
+
+        window.addEventListener(
+            "pagehide",
+            handlePageHide
+        );
+
+        window.addEventListener(
+            "beforeunload",
+            handleBeforeUnload
+        );
+
+        window.addEventListener(
+            "storage",
+            handleStorageChange
+        );
+    }
+
+    // =========================================================
+    // 15. Initialize
+    // =========================================================
+
+    function initialize() {
+        hideMessage();
 
         session = loadSession();
 
         if (!session) {
-          session = createNewSession();
-          saveSession();
-        }
-
-        if (startedAtElement) {
-          startedAtElement.textContent =
-            `${formatDateTime(
-              session.startedAt,
-            )}부터 측정 중`;
+            session = new StudySession(CONFIG.subject);
+            saveSession();
+        } else if (session.isPaused && session.automaticallyPaused) {
+            // 이전 버전에서 자동 정지된 세션이 남아 있을 경우
+            // 한 번만 자동으로 다시 시작한다.
+            resumeStudy();
         }
 
         bindEvents();
-
-        /*
-         * 이전 버전에서 화면 이탈로 자동 일시정지된 세션이
-         * localStorage에 남아 있다면 한 번만 정상 상태로 복구한다.
-         *
-         * 화면을 벗어나 있던 시간도 공부시간으로 포함해야 하므로
-         * totalPausedMilliseconds에는 추가하지 않는다.
-         */
-        if (
-          session.isPaused &&
-          session.automaticallyPaused
-        ) {
-          session.pausedAt = null;
-          session.isPaused = false;
-          session.automaticallyPaused =
-            false;
-
-          saveSession();
-        }
-
-        updateStatusUI();
         updateTimerUI();
+        startTimer();
+    }
 
-        if (!session.isPaused) {
-          startTimerInterval();
-        }
-      }
-
-      initializePage();
-    })();
+    if (document.readyState === "loading") {
+        document.addEventListener(
+            "DOMContentLoaded",
+            initialize,
+            { once: true }
+        );
+    } else {
+        initialize();
+    }
+})();
