@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 import os
+import json
+import time
 
 import requests
-from flask import jsonify, request
+from flask import Response, jsonify, request, stream_with_context
 
 from services.study_service import (
     create_study_record,
@@ -140,6 +142,75 @@ def register_study_routes(app):
         except Exception as error:
             print("집중 세션 조회 오류:", repr(error))
             return jsonify({"success": False, "message": "집중 세션을 확인하지 못했습니다."}), 500
+
+    @app.route(
+        "/api/focus-session/events",
+        methods=["GET"],
+        endpoint="focus_session_events_api",
+    )
+    @login_required
+    def focus_session_events_api():
+        """현재 계정의 집중 세션 종료를 SSE로 실시간 전달한다.
+
+        브라우저는 EventSource 연결 하나만 유지한다. 다른 기기에서 같은
+        세션을 종료하면 서버가 ``focus-ended`` 이벤트를 보내고 연결을 닫는다.
+        DB를 기준으로 확인하므로 여러 서버 프로세스에서도 동일하게 동작한다.
+        """
+        user = get_current_user()
+        user_id = str(user["id"])
+        watched_session_id = str(request.args.get("session_id") or "").strip()
+
+        if not watched_session_id:
+            return jsonify({
+                "success": False,
+                "message": "감시할 집중 세션 ID가 없습니다.",
+            }), 400
+
+        @stream_with_context
+        def event_stream():
+            # 연결 직후 응답을 보내 프록시/브라우저가 스트림을 즉시 확정하게 한다.
+            yield "retry: 2000\nevent: connected\ndata: {}\n\n"
+            keepalive_count = 0
+
+            while True:
+                try:
+                    active = get_active_focus_session(user_id)
+                    active_id = str(active.get("id")) if active else ""
+
+                    if not active or active_id != watched_session_id:
+                        payload = json.dumps({
+                            "session_id": watched_session_id,
+                            "reason": "ended",
+                        }, ensure_ascii=False)
+                        yield f"event: focus-ended\ndata: {payload}\n\n"
+                        break
+
+                    keepalive_count += 1
+                    if keepalive_count >= 15:
+                        yield ": keep-alive\n\n"
+                        keepalive_count = 0
+
+                    time.sleep(1)
+
+                except GeneratorExit:
+                    break
+                except Exception as error:
+                    print("집중 세션 실시간 감시 오류:", repr(error))
+                    payload = json.dumps({
+                        "message": "집중 세션 상태를 확인하지 못했습니다.",
+                    }, ensure_ascii=False)
+                    yield f"event: focus-error\ndata: {payload}\n\n"
+                    time.sleep(2)
+
+        return Response(
+            event_stream(),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-transform",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
 
     @app.route("/api/focus-session/stop", methods=["POST"], endpoint="stop_focus_session_api")
     @login_required
