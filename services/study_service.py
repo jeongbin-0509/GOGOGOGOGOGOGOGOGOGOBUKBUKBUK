@@ -655,10 +655,10 @@ def start_focus_session(user_id, subject, client_token):
                 .execute()
             )
             active = None
-        elif str(active.get("client_token") or "") == client_token:
-            return active, False
         else:
-            raise RuntimeError("이미 다른 기기에서 집중 모드가 실행 중입니다.")
+            # 계정당 활성 세션은 하나만 유지한다. 다른 기기에서 접근해도
+            # 새 세션을 만들지 않고 현재 진행 중인 세션을 공유한다.
+            return active, False
 
     row = {
         "user_id": str(user_id),
@@ -668,15 +668,27 @@ def start_focus_session(user_id, subject, client_token):
         "client_token": client_token,
     }
 
-    result = (
-        supabase
-        .table("active_study_sessions")
-        .insert(row)
-        .execute()
-    )
+    try:
+        result = (
+            supabase
+            .table("active_study_sessions")
+            .insert(row)
+            .execute()
+        )
+    except Exception:
+        # 두 기기에서 거의 동시에 시작 요청을 보낸 경우 unique index가
+        # 한 요청을 막을 수 있다. 이때 이미 생성된 세션을 다시 조회해
+        # 두 기기 모두 같은 세션을 사용하도록 한다.
+        active = get_active_focus_session(user_id)
+        if active:
+            return active, False
+        raise
 
     rows = result.data or []
     if not rows:
+        active = get_active_focus_session(user_id)
+        if active:
+            return active, False
         raise RuntimeError("집중 세션을 시작하지 못했습니다.")
 
     return rows[0], True
@@ -689,8 +701,8 @@ def stop_focus_session(user_id, client_token):
     if not active:
         raise LookupError("진행 중인 집중 세션이 없습니다.")
 
-    if str(active.get("client_token") or "") != str(client_token or ""):
-        raise PermissionError("다른 기기에서 시작한 집중 세션은 종료할 수 없습니다.")
+    # 로그인한 계정이 같다면 어느 기기에서든 동일한 활성 세션을
+    # 종료할 수 있다. 실제 공부시간은 서버의 started_at/ended_at으로 계산한다.
 
     started_at = _parse_iso_datetime(active.get("started_at"))
     # 경과시간 계산과 DB timestamp 저장은 UTC로 유지한다.

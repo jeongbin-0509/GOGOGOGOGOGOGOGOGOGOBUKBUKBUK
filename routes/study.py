@@ -91,25 +91,36 @@ def register_study_routes(app):
                 data.get("subject"),
                 data.get("client_token"),
             )
+            public_session = {
+                key: value
+                for key, value in session_row.items()
+                if key != "client_token"
+            }
             return jsonify({
                 "success": True,
                 "created": created,
-                "session": session_row,
+                "session": public_session,
             }), 201 if created else 200
         except ValueError as error:
             return jsonify({"success": False, "message": str(error)}), 400
         except RuntimeError as error:
-            message = str(error)
-            status = 409 if "다른 기기" in message else 500
-            return jsonify({"success": False, "message": message}), status
+            return jsonify({"success": False, "message": str(error)}), 500
         except Exception as error:
             print("집중 세션 시작 오류:", repr(error))
             text = str(error)
             if "23505" in text or "duplicate key" in text.lower():
-                return jsonify({
-                    "success": False,
-                    "message": "이미 다른 기기에서 집중 모드가 실행 중입니다.",
-                }), 409
+                active = get_active_focus_session(user["id"])
+                if active:
+                    public_session = {
+                        key: value
+                        for key, value in active.items()
+                        if key != "client_token"
+                    }
+                    return jsonify({
+                        "success": True,
+                        "created": False,
+                        "session": public_session,
+                    }), 200
             return jsonify({"success": False, "message": "집중 모드를 시작하지 못했습니다."}), 500
 
     @app.route("/api/focus-session/status", methods=["GET"], endpoint="focus_session_status_api")
@@ -118,15 +129,12 @@ def register_study_routes(app):
         try:
             user = get_current_user()
             active = get_active_focus_session(user["id"])
-            client_token = str(request.args.get("client_token") or "")
-            owned = bool(active and str(active.get("client_token") or "") == client_token)
             public_session = None
             if active:
                 public_session = {key: value for key, value in active.items() if key != "client_token"}
             return jsonify({
                 "success": True,
                 "active": bool(active),
-                "owned": owned,
                 "session": public_session,
             }), 200
         except Exception as error:
@@ -150,8 +158,6 @@ def register_study_routes(app):
             }), 200
         except LookupError as error:
             return jsonify({"success": False, "message": str(error)}), 404
-        except PermissionError as error:
-            return jsonify({"success": False, "message": str(error)}), 403
         except Exception as error:
             print("집중 세션 종료 오류:", repr(error))
             return jsonify({"success": False, "message": "집중 세션 종료 중 오류가 발생했습니다."}), 500

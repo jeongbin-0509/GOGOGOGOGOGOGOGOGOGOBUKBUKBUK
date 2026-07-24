@@ -33,6 +33,11 @@ document.addEventListener("DOMContentLoaded", () => {
     pageData.focusUrl || "/focus",
   );
 
+  const focusStatusUrl = String(
+    pageData.focusStatusUrl ||
+      "/api/focus-session/status",
+  );
+
   const logoutUrl = String(
     pageData.logoutUrl || "/logout",
   );
@@ -164,6 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let subjects = [];
   let editingSubjects = [];
   let selectedSubject = "";
+  let serverActiveSession = null;
 
   let editingRecord = null;
   let recordEditModal = null;
@@ -496,9 +502,38 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================================================
 
   function getActiveSession() {
-    // 진행 중 여부는 이제 브라우저가 아니라 서버가 관리한다.
-    localStorage.removeItem(ACTIVE_SESSION_KEY);
-    return null;
+    return serverActiveSession;
+  }
+
+  async function loadActiveFocusSession() {
+    const response = await fetch(focusStatusUrl, {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      window.location.href = "/login";
+      return null;
+    }
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.message ||
+          "진행 중인 집중 모드를 확인하지 못했습니다.",
+      );
+    }
+
+    serverActiveSession =
+      result.active && result.session
+        ? result.session
+        : null;
+
+    return serverActiveSession;
   }
 
   // =========================================================
@@ -2089,6 +2124,23 @@ document.addEventListener("DOMContentLoaded", () => {
   async function initialize() {
     renderDashboardSummary();
     bindEvents();
+
+    try {
+      const activeSession =
+        await loadActiveFocusSession();
+
+      if (activeSession?.subject) {
+        // 다른 기기에서 이미 공부 중이라면 로그인 후 대시보드에
+        // 머무르지 않고 같은 서버 세션의 집중 화면으로 이동한다.
+        moveToFocus(activeSession.subject);
+        return;
+      }
+    } catch (error) {
+      console.error(
+        "집중 세션 동기화 오류:",
+        error,
+      );
+    }
 
     if (subjectList) {
       subjectList.innerHTML = `

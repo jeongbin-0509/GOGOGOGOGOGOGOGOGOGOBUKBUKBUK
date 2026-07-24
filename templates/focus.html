@@ -236,12 +236,13 @@
         goalSeconds: {{ goal_seconds | default(28800) | tojson }},
         dashboardUrl: {{ url_for('dashboard') | tojson }},
         startSessionUrl: {{ url_for('start_focus_session_api') | tojson }},
+        statusSessionUrl: {{ url_for('focus_session_status_api') | tojson }},
         stopSessionUrl: {{ url_for('stop_focus_session_api') | tojson }}
       };
     </script>
 
     <script
-      src="{{ url_for('static', filename='js/focus.js') }}?v=4"
+      src="{{ url_for('static', filename='js/focus.js') }}?v=5"
     ></script>
   </body>
 </html>

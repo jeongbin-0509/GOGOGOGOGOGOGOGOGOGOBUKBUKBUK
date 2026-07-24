@@ -493,6 +493,8 @@
     </div>
     <script>
       window.STUDY_PAGE_DATA = {
+        focusUrl: {{ url_for('focus') | tojson }},
+        focusStatusUrl: {{ url_for('focus_session_status_api') | tojson }},
         todaySeconds: {{ today_seconds | int }},
         goalSeconds: {{ goal_seconds | int }},
         goalPercentage: {{ goal_percentage | int }},

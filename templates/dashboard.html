@@ -571,6 +571,9 @@
         focusUrl:
           {{ url_for('focus') | tojson }},
 
+        focusStatusUrl:
+          {{ url_for('focus_session_status_api') | tojson }},
+
         logoutUrl:
           {{ url_for('logout') | tojson }},
 
@@ -580,7 +583,7 @@
     </script>
 
     <script
-      src="{{ url_for('static', filename='js/study.js') }}?v=6"
+      src="{{ url_for('static', filename='js/study.js') }}?v=7"
     ></script>
 
     <footer class="site-footer">

@@ -5,10 +5,12 @@
   const subject = String(data.subject || "기타").trim();
   const dashboardUrl = String(data.dashboardUrl || "/");
   const startUrl = String(data.startSessionUrl || "/api/focus-session/start");
+  const statusUrl = String(data.statusSessionUrl || "/api/focus-session/status");
   const stopUrl = String(data.stopSessionUrl || "/api/focus-session/stop");
   const goalSeconds = Math.max(1, Number(data.goalSeconds) || 28800);
   const baseTodaySeconds = Math.max(0, Number(data.todaySeconds) || 0);
 
+  const subjectTitle = document.getElementById("focusSubject");
   const timer = document.getElementById("focusTimer");
   const todayTotal = document.getElementById("focusTodayTotal");
   const goalText = document.getElementById("focusGoalText");
@@ -114,17 +116,42 @@
     modal.hidden = true;
   }
 
+  function applySession(session) {
+    activeSession = session;
+
+    if (subjectTitle && activeSession?.subject) {
+      subjectTitle.textContent = activeSession.subject;
+      document.title = `${activeSession.subject} 집중 모드 | 돼지런한 여름방학`;
+    }
+
+    statusBadge.textContent = "공부 중";
+    startedAtText.textContent = `${new Date(activeSession.started_at).toLocaleString("ko-KR")} 시작`;
+
+    clearInterval(intervalId);
+    render();
+    intervalId = setInterval(render, 1000);
+  }
+
   async function start() {
+    const result = await api(startUrl, {
+      method: "POST",
+      body: { subject, client_token: clientToken },
+    });
+    applySession(result.session);
+  }
+
+  async function initialize() {
     try {
-      const result = await api(startUrl, {
-        method: "POST",
-        body: { subject, client_token: clientToken },
-      });
-      activeSession = result.session;
-      statusBadge.textContent = "공부 중";
-      startedAtText.textContent = `${new Date(activeSession.started_at).toLocaleString("ko-KR")} 시작`;
-      render();
-      intervalId = setInterval(render, 1000);
+      // 페이지 진입 시 먼저 서버의 기존 활성 세션을 확인한다.
+      // 다른 기기에서 시작한 세션이 있으면 새로 만들지 않고 그대로 복원한다.
+      const status = await api(statusUrl);
+
+      if (status.active && status.session) {
+        applySession(status.session);
+        return;
+      }
+
+      await start();
     } catch (error) {
       statusBadge.textContent = "시작 실패";
       showError(error.message);
@@ -142,7 +169,7 @@
     try {
       await api(stopUrl, {
         method: "POST",
-        body: { client_token: clientToken },
+        body: {},
       });
       clearInterval(intervalId);
       localStorage.removeItem("activeStudySession");
@@ -166,5 +193,5 @@
     if (event.key === "Escape" && !modal.hidden) closeModal();
   });
 
-  start();
+  initialize();
 })();
