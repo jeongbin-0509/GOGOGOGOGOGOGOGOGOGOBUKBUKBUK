@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from flask import request
 
@@ -32,4 +33,5 @@ def normalize_username(value):
 
 
 def today_iso():
-    return date.today().isoformat()
+    """대한민국 표준시(KST)를 기준으로 오늘 날짜를 반환한다."""
+    return datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()

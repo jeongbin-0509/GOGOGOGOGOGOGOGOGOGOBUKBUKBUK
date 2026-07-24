@@ -496,44 +496,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================================================
 
   function getActiveSession() {
-    try {
-      const savedSession =
-        localStorage.getItem(
-          ACTIVE_SESSION_KEY,
-        );
-
-      if (!savedSession) {
-        return null;
-      }
-
-      const parsedSession =
-        JSON.parse(savedSession);
-
-      if (
-        !parsedSession ||
-        !parsedSession.subject ||
-        !parsedSession.startedAt
-      ) {
-        localStorage.removeItem(
-          ACTIVE_SESSION_KEY,
-        );
-
-        return null;
-      }
-
-      return parsedSession;
-    } catch (error) {
-      console.error(
-        "진행 중 세션 확인 오류:",
-        error,
-      );
-
-      localStorage.removeItem(
-        ACTIVE_SESSION_KEY,
-      );
-
-      return null;
-    }
+    // 진행 중 여부는 이제 브라우저가 아니라 서버가 관리한다.
+    localStorage.removeItem(ACTIVE_SESSION_KEY);
+    return null;
   }
 
   // =========================================================

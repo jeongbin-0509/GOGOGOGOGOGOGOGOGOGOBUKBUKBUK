@@ -2,6 +2,29 @@ from flask import session
 
 from extensions import supabase
 
+def update_session_token(user_id, token):
+    result = (
+        supabase
+        .table("users")
+        .update({"session_token": token})
+        .eq("id", user_id)
+        .execute()
+    )
+
+    return result.data[0] if result.data else None
+
+
+def get_session_token(user_id):
+    result = (
+        supabase
+        .table("users")
+        .select("session_token")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+
+    return result.data[0]["session_token"] if result.data else None
 
 def get_current_user():
     user_id = session.get("user_id")

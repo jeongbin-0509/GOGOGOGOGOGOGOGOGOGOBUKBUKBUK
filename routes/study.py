@@ -13,6 +13,9 @@ from services.study_service import (
     replace_study_subjects,
     update_daily_study_stats,
     update_study_record_duration,
+    get_active_focus_session,
+    start_focus_session,
+    stop_focus_session,
 )
 from services.user_service import get_current_user
 from utils.decorators import login_required
@@ -73,6 +76,86 @@ def _supabase_rest_request(method, table, *, params=None, json=None):
 
 
 def register_study_routes(app):
+
+    # =====================================================
+    # 서버 기준 집중 세션 시작/조회/종료
+    # =====================================================
+    @app.route("/api/focus-session/start", methods=["POST"], endpoint="start_focus_session_api")
+    @login_required
+    def start_focus_session_api():
+        try:
+            user = get_current_user()
+            data = request.get_json(silent=True) or {}
+            session_row, created = start_focus_session(
+                user["id"],
+                data.get("subject"),
+                data.get("client_token"),
+            )
+            return jsonify({
+                "success": True,
+                "created": created,
+                "session": session_row,
+            }), 201 if created else 200
+        except ValueError as error:
+            return jsonify({"success": False, "message": str(error)}), 400
+        except RuntimeError as error:
+            message = str(error)
+            status = 409 if "다른 기기" in message else 500
+            return jsonify({"success": False, "message": message}), status
+        except Exception as error:
+            print("집중 세션 시작 오류:", repr(error))
+            text = str(error)
+            if "23505" in text or "duplicate key" in text.lower():
+                return jsonify({
+                    "success": False,
+                    "message": "이미 다른 기기에서 집중 모드가 실행 중입니다.",
+                }), 409
+            return jsonify({"success": False, "message": "집중 모드를 시작하지 못했습니다."}), 500
+
+    @app.route("/api/focus-session/status", methods=["GET"], endpoint="focus_session_status_api")
+    @login_required
+    def focus_session_status_api():
+        try:
+            user = get_current_user()
+            active = get_active_focus_session(user["id"])
+            client_token = str(request.args.get("client_token") or "")
+            owned = bool(active and str(active.get("client_token") or "") == client_token)
+            public_session = None
+            if active:
+                public_session = {key: value for key, value in active.items() if key != "client_token"}
+            return jsonify({
+                "success": True,
+                "active": bool(active),
+                "owned": owned,
+                "session": public_session,
+            }), 200
+        except Exception as error:
+            print("집중 세션 조회 오류:", repr(error))
+            return jsonify({"success": False, "message": "집중 세션을 확인하지 못했습니다."}), 500
+
+    @app.route("/api/focus-session/stop", methods=["POST"], endpoint="stop_focus_session_api")
+    @login_required
+    def stop_focus_session_api():
+        try:
+            user = get_current_user()
+            data = request.get_json(silent=True) or {}
+            result = stop_focus_session(user["id"], data.get("client_token"))
+            today = today_iso()
+            return jsonify({
+                "success": True,
+                "message": "공부 기록이 저장되었습니다." if result["record"] else "10초 미만이라 기록하지 않았습니다.",
+                **result,
+                "today_seconds": get_study_total(user["id"], today),
+                "total_seconds": get_study_total(user["id"]),
+            }), 200
+        except LookupError as error:
+            return jsonify({"success": False, "message": str(error)}), 404
+        except PermissionError as error:
+            return jsonify({"success": False, "message": str(error)}), 403
+        except Exception as error:
+            print("집중 세션 종료 오류:", repr(error))
+            return jsonify({"success": False, "message": "집중 세션 종료 중 오류가 발생했습니다."}), 500
+
 
     # =====================================================
     # 사용자별 과목 목록 조회

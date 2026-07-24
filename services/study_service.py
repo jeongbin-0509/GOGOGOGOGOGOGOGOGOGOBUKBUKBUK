@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from extensions import supabase
 
@@ -117,7 +118,7 @@ def update_daily_study_stats(
         )
 
     if study_date is None:
-        study_date = date.today().isoformat()
+        study_date = datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
 
     records_result = (
         supabase
@@ -577,3 +578,167 @@ def replace_study_subjects(user_id, subjects):
         )
 
     return get_study_subjects(user_id)
+
+# =========================================================
+# 서버 기준 집중 세션
+# =========================================================
+
+def _parse_iso_datetime(value):
+    from datetime import datetime, timezone
+
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        text = str(value or "").strip().replace("Z", "+00:00")
+        if not text:
+            return None
+        parsed = datetime.fromisoformat(text)
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+
+    return parsed.astimezone(timezone.utc)
+
+
+def get_active_focus_session(user_id):
+    if not user_id:
+        return None
+
+    result = (
+        supabase
+        .table("active_study_sessions")
+        .select("id,user_id,subject,started_at,ended_at,is_active,client_token")
+        .eq("user_id", str(user_id))
+        .eq("is_active", True)
+        .order("started_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    rows = result.data or []
+    return rows[0] if rows else None
+
+
+def start_focus_session(user_id, subject, client_token):
+    from datetime import datetime, timezone, timedelta
+
+    if not user_id:
+        raise ValueError("로그인이 필요합니다.")
+
+    subject = str(subject or "").strip()
+    client_token = str(client_token or "").strip()
+
+    if not subject:
+        raise ValueError("과목을 선택해 주세요.")
+    if len(subject) > 30:
+        raise ValueError("과목 이름은 30자 이하로 입력해 주세요.")
+    if len(client_token) < 16 or len(client_token) > 128:
+        raise ValueError("기기 인증 정보가 올바르지 않습니다.")
+
+    now = datetime.now(timezone.utc)
+    active = get_active_focus_session(user_id)
+
+    if active:
+        started_at = _parse_iso_datetime(active.get("started_at"))
+
+        # 비정상 종료로 24시간 이상 잠긴 세션은 자동 해제한다.
+        if started_at and now - started_at >= timedelta(hours=24):
+            (
+                supabase
+                .table("active_study_sessions")
+                .update({
+                    "is_active": False,
+                    "ended_at": now.isoformat(),
+                })
+                .eq("id", active["id"])
+                .eq("is_active", True)
+                .execute()
+            )
+            active = None
+        elif str(active.get("client_token") or "") == client_token:
+            return active, False
+        else:
+            raise RuntimeError("이미 다른 기기에서 집중 모드가 실행 중입니다.")
+
+    row = {
+        "user_id": str(user_id),
+        "subject": subject,
+        "started_at": now.isoformat(),
+        "is_active": True,
+        "client_token": client_token,
+    }
+
+    result = (
+        supabase
+        .table("active_study_sessions")
+        .insert(row)
+        .execute()
+    )
+
+    rows = result.data or []
+    if not rows:
+        raise RuntimeError("집중 세션을 시작하지 못했습니다.")
+
+    return rows[0], True
+
+
+def stop_focus_session(user_id, client_token):
+    from datetime import datetime, timezone
+
+    active = get_active_focus_session(user_id)
+    if not active:
+        raise LookupError("진행 중인 집중 세션이 없습니다.")
+
+    if str(active.get("client_token") or "") != str(client_token or ""):
+        raise PermissionError("다른 기기에서 시작한 집중 세션은 종료할 수 없습니다.")
+
+    started_at = _parse_iso_datetime(active.get("started_at"))
+    # 경과시간 계산과 DB timestamp 저장은 UTC로 유지한다.
+    ended_at = datetime.now(timezone.utc)
+    # 날짜별 합계는 한국 시간(KST)을 기준으로 저장한다.
+    study_date = ended_at.astimezone(ZoneInfo("Asia/Seoul")).date().isoformat()
+
+    if not started_at:
+        raise RuntimeError("집중 세션 시작 시간이 올바르지 않습니다.")
+
+    duration_seconds = max(0, int((ended_at - started_at).total_seconds()))
+    duration_seconds = min(duration_seconds, 24 * 3600)
+
+    # 먼저 활성 상태를 원자적으로 해제한다. 같은 요청이 중복 실행되어도
+    # 한 번만 처리되도록 is_active 조건을 함께 사용한다.
+    update_result = (
+        supabase
+        .table("active_study_sessions")
+        .update({
+            "is_active": False,
+            "ended_at": ended_at.isoformat(),
+        })
+        .eq("id", active["id"])
+        .eq("is_active", True)
+        .execute()
+    )
+
+    if not (update_result.data or []):
+        raise LookupError("이미 종료된 집중 세션입니다.")
+
+    record = None
+    if duration_seconds >= 10:
+        record = create_study_record({
+            "user_id": user_id,
+            "subject": active.get("subject") or "기타",
+            "duration_seconds": duration_seconds,
+            "study_date": study_date,
+            "started_at": started_at.isoformat(),
+            "ended_at": ended_at.isoformat(),
+        })
+        update_daily_study_stats(user_id, study_date)
+
+    return {
+        "session": {
+            **active,
+            "is_active": False,
+            "ended_at": ended_at.isoformat(),
+        },
+        "record": record,
+        "duration_seconds": duration_seconds,
+    }

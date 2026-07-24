@@ -235,12 +235,13 @@
         todaySeconds: {{ today_seconds | default(0) | tojson }},
         goalSeconds: {{ goal_seconds | default(28800) | tojson }},
         dashboardUrl: {{ url_for('dashboard') | tojson }},
-        saveRecordUrl: {{ url_for('create_study_record_api') | tojson }}
+        startSessionUrl: {{ url_for('start_focus_session_api') | tojson }},
+        stopSessionUrl: {{ url_for('stop_focus_session_api') | tojson }}
       };
     </script>
 
     <script
-      src="{{ url_for('static', filename='js/focus.js') }}?v=3"
+      src="{{ url_for('static', filename='js/focus.js') }}?v=4"
     ></script>
   </body>
 </html>
