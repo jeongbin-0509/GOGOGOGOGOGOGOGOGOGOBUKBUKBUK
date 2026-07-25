@@ -3,6 +3,23 @@ from zoneinfo import ZoneInfo
 
 from extensions import supabase
 
+from datetime import timedelta, time, timezone
+
+def _split_session_by_kst_date(started_at, ended_at):
+    kst=ZoneInfo("Asia/Seoul")
+    segs=[]
+    cur=started_at
+    while cur<ended_at:
+        cur_k=cur.astimezone(kst)
+        next_mid=datetime.combine(cur_k.date()+timedelta(days=1), time.min, tzinfo=kst).astimezone(timezone.utc)
+        end=min(ended_at,next_mid)
+        secs=max(0,int((end-cur).total_seconds()))
+        if secs:
+            segs.append({"study_date":cur_k.date().isoformat(),"started_at":cur,"ended_at":end,"duration_seconds":secs})
+        cur=end
+    return segs
+
+
 
 # =========================================================
 # 공통 변환
@@ -735,15 +752,23 @@ def stop_focus_session(user_id, client_token):
 
     record = None
     if duration_seconds >= 10:
-        record = create_study_record({
-            "user_id": user_id,
-            "subject": active.get("subject") or "기타",
-            "duration_seconds": duration_seconds,
-            "study_date": study_date,
-            "started_at": started_at.isoformat(),
-            "ended_at": ended_at.isoformat(),
-        })
-        update_daily_study_stats(user_id, study_date)
+        segments=_split_session_by_kst_date(started_at, ended_at)
+        records=[]
+        updated_dates=set()
+        for seg in segments:
+            rec=create_study_record({
+                "user_id": user_id,
+                "subject": active.get("subject") or "기타",
+                "duration_seconds": seg["duration_seconds"],
+                "study_date": seg["study_date"],
+                "started_at": seg["started_at"].isoformat(),
+                "ended_at": seg["ended_at"].isoformat(),
+            })
+            records.append(rec)
+            if seg["study_date"] not in updated_dates:
+                update_daily_study_stats(user_id, seg["study_date"])
+                updated_dates.add(seg["study_date"])
+        record=records
 
     return {
         "session": {
