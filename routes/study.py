@@ -155,6 +155,8 @@ def register_study_routes(app):
                 "today_seconds": get_study_total(user["id"], today),
                 "total_seconds": get_study_total(user["id"]),
             }), 200
+        except ValueError as error:
+            return jsonify({"success": False, "message": str(error)}), 400
         except LookupError as error:
             return jsonify({"success": False, "message": str(error)}), 404
         except Exception as error:

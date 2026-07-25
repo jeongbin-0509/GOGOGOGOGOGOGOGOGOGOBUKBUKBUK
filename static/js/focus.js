@@ -9,6 +9,7 @@
   const stopUrl = String(data.stopSessionUrl || "/api/focus-session/stop");
   const goalSeconds = Math.max(1, Number(data.goalSeconds) || 28800);
   const baseTodaySeconds = Math.max(0, Number(data.todaySeconds) || 0);
+  const MIN_EXIT_SECONDS = 10;
 
   const subjectTitle = document.getElementById("focusSubject");
   const timer = document.getElementById("focusTimer");
@@ -108,7 +109,19 @@
     message.dataset.type = "error";
   }
 
+  function canLeaveFocus() {
+    const remaining = Math.max(0, MIN_EXIT_SECONDS - elapsedSeconds());
+
+    if (remaining > 0) {
+      showError(`집중 모드는 시작 후 10초가 지나야 나갈 수 있습니다. ${remaining}초 남았습니다.`);
+      return false;
+    }
+
+    return true;
+  }
+
   function openModal() {
+    if (!canLeaveFocus()) return;
     modal.hidden = false;
   }
 
@@ -162,7 +175,7 @@
   }
 
   async function stop() {
-    if (stopping || !activeSession) return;
+    if (stopping || !activeSession || !canLeaveFocus()) return;
     stopping = true;
     confirmButton.disabled = true;
     confirmButton.textContent = "저장 중...";
@@ -184,8 +197,15 @@
     }
   }
 
-  backLink?.addEventListener("click", () => localStorage.removeItem("activeStudySession"));
-  dashboardButton?.addEventListener("click", () => { location.href = dashboardUrl; });
+  function leaveToDashboard(event) {
+    event?.preventDefault();
+    if (!canLeaveFocus()) return;
+    localStorage.removeItem("activeStudySession");
+    location.href = dashboardUrl;
+  }
+
+  backLink?.addEventListener("click", leaveToDashboard);
+  dashboardButton?.addEventListener("click", leaveToDashboard);
   stopButton?.addEventListener("click", openModal);
   backdrop?.addEventListener("click", closeModal);
   cancelButton?.addEventListener("click", closeModal);

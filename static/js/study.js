@@ -1489,6 +1489,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================================================
 
   function selectSubject(subject) {
+    if (getActiveSession()) {
+      showMessage(
+        dashboardMessage,
+        "집중 모드가 진행 중일 때는 과목을 변경할 수 없습니다. 기존 공부 기록 수정과 프로필·랭킹 이용은 가능합니다.",
+      );
+      return;
+    }
+
     selectedSubject =
       normalizeSubjectName(subject);
 
@@ -1550,6 +1558,7 @@ document.addEventListener("DOMContentLoaded", () => {
       button.type = "button";
       button.className =
         "subject-choice-button";
+      button.disabled = Boolean(getActiveSession());
 
       button.textContent = subject;
 
@@ -1631,6 +1640,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================================================
 
   function openSubjectEditor() {
+    if (getActiveSession()) {
+      showMessage(
+        dashboardMessage,
+        "집중 모드가 진행 중일 때는 과목 목록을 수정할 수 없습니다.",
+      );
+      return;
+    }
+
     if (!subjectEditorModal) {
       return;
     }
@@ -2130,10 +2147,19 @@ document.addEventListener("DOMContentLoaded", () => {
         await loadActiveFocusSession();
 
       if (activeSession?.subject) {
-        // 다른 기기에서 이미 공부 중이라면 로그인 후 대시보드에
-        // 머무르지 않고 같은 서버 세션의 집중 화면으로 이동한다.
-        moveToFocus(activeSession.subject);
-        return;
+        // 집중 세션이 진행 중이어도 대시보드에 머물 수 있다.
+        // 새 세션과 과목 수정은 잠그고, 기존 기록 수정·프로필·랭킹은 허용한다.
+        if (openSubjectEditorButton) {
+          openSubjectEditorButton.disabled = true;
+          openSubjectEditorButton.title =
+            "집중 모드 진행 중에는 과목을 수정할 수 없습니다.";
+        }
+
+        showMessage(
+          dashboardMessage,
+          `${activeSession.subject} 집중 모드가 백그라운드에서 계속 측정 중입니다. 새 공부 시작과 과목 수정은 제한됩니다.`,
+          "success",
+        );
       }
     } catch (error) {
       console.error(

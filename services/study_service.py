@@ -733,6 +733,15 @@ def stop_focus_session(user_id, client_token):
     duration_seconds = max(0, int((ended_at - started_at).total_seconds()))
     duration_seconds = min(duration_seconds, 24 * 3600)
 
+    # 10초가 지나기 전에는 세션을 종료하지 않는다.
+    # 기존처럼 세션을 닫고 기록만 버리는 동작을 막는다.
+    if duration_seconds < 10:
+        remaining_seconds = 10 - duration_seconds
+        raise ValueError(
+            f"집중 모드는 시작 후 10초가 지나야 종료할 수 있습니다. "
+            f"{remaining_seconds}초 남았습니다."
+        )
+
     # 먼저 활성 상태를 원자적으로 해제한다. 같은 요청이 중복 실행되어도
     # 한 번만 처리되도록 is_active 조건을 함께 사용한다.
     update_result = (
