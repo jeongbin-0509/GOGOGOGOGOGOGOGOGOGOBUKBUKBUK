@@ -7,7 +7,6 @@
   const startUrl = String(data.startSessionUrl || "/api/focus-session/start");
   const statusUrl = String(data.statusSessionUrl || "/api/focus-session/status");
   const stopUrl = String(data.stopSessionUrl || "/api/focus-session/stop");
-  const eventsUrl = String(data.eventsSessionUrl || "/api/focus-session/events");
   const goalSeconds = Math.max(1, Number(data.goalSeconds) || 28800);
   const baseTodaySeconds = Math.max(0, Number(data.todaySeconds) || 0);
 
@@ -33,9 +32,7 @@
 
   let activeSession = null;
   let intervalId = null;
-  let eventSource = null;
   let stopping = false;
-  let remoteEndHandled = false;
 
   function getClientToken() {
     const key = "focusDeviceToken";
@@ -120,45 +117,6 @@
   }
 
 
-  function closeSessionEvents() {
-    if (eventSource) {
-      eventSource.close();
-      eventSource = null;
-    }
-  }
-
-  function handleRemoteSessionEnd() {
-    if (stopping || remoteEndHandled) return;
-    remoteEndHandled = true;
-    closeSessionEvents();
-    clearInterval(intervalId);
-    activeSession = null;
-    localStorage.removeItem("activeStudySession");
-    statusBadge.textContent = "종료됨";
-    stopButton.disabled = true;
-    dashboardButton.disabled = true;
-    alert("다른 기기에서 집중 세션이 종료되었습니다.");
-    location.href = dashboardUrl;
-  }
-
-  function watchSessionEvents(session) {
-    closeSessionEvents();
-    remoteEndHandled = false;
-
-    if (!session?.id || typeof EventSource === "undefined") return;
-
-    const url = `${eventsUrl}?session_id=${encodeURIComponent(session.id)}`;
-    eventSource = new EventSource(url, { withCredentials: true });
-
-    eventSource.addEventListener("focus-ended", handleRemoteSessionEnd);
-
-    // EventSource는 일시적인 네트워크 단절 시 자동 재연결한다.
-    // 따라서 error 이벤트에서는 화면을 종료하지 않는다.
-    eventSource.addEventListener("focus-error", event => {
-      console.warn("집중 세션 실시간 감시 오류:", event.data);
-    });
-  }
-
   function applySession(session) {
     activeSession = session;
 
@@ -173,7 +131,6 @@
     clearInterval(intervalId);
     render();
     intervalId = setInterval(render, 1000);
-    watchSessionEvents(activeSession);
   }
 
   async function start() {
@@ -207,7 +164,6 @@
   async function stop() {
     if (stopping || !activeSession) return;
     stopping = true;
-    closeSessionEvents();
     confirmButton.disabled = true;
     confirmButton.textContent = "저장 중...";
 
@@ -238,7 +194,6 @@
     if (event.key === "Escape" && !modal.hidden) closeModal();
   });
 
-  window.addEventListener("beforeunload", closeSessionEvents);
 
   initialize();
 })();
