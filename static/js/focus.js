@@ -10,6 +10,7 @@
   const goalSeconds = Math.max(1, Number(data.goalSeconds) || 28800);
   const baseTodaySeconds = Math.max(0, Number(data.todaySeconds) || 0);
   const MIN_EXIT_SECONDS = 10;
+  const MAX_FOCUS_SECONDS = 24 * 60 * 60;
 
   const subjectTitle = document.getElementById("focusSubject");
   const timer = document.getElementById("focusTimer");
@@ -76,7 +77,13 @@
   function elapsedSeconds() {
     if (!activeSession?.started_at) return 0;
     const started = new Date(activeSession.started_at).getTime();
-    return Math.max(0, Math.floor((Date.now() - started) / 1000));
+    const elapsed = Math.max(
+      0,
+      Math.floor((Date.now() - started) / 1000),
+    );
+
+    // 화면 타이머도 24시간에서 멈춘다.
+    return Math.min(elapsed, MAX_FOCUS_SECONDS);
   }
 
   function gradeFor(seconds) {
@@ -181,12 +188,18 @@
     confirmButton.textContent = "저장 중...";
 
     try {
-      await api(stopUrl, {
+      const result = await api(stopUrl, {
         method: "POST",
         body: {},
       });
+
       clearInterval(intervalId);
       localStorage.removeItem("activeStudySession");
+
+      if (result.was_capped) {
+        alert("최대 집중시간은 24시간만 기록 가능합니다.");
+      }
+
       location.href = dashboardUrl;
     } catch (error) {
       closeModal();

@@ -712,7 +712,7 @@ def start_focus_session(user_id, subject, client_token):
 
 
 def stop_focus_session(user_id, client_token):
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, timedelta
 
     active = get_active_focus_session(user_id)
     if not active:
@@ -720,35 +720,46 @@ def stop_focus_session(user_id, client_token):
 
     # 로그인한 계정이 같다면 어느 기기에서든 동일한 활성 세션을
     # 종료할 수 있다. 실제 공부시간은 서버의 started_at/ended_at으로 계산한다.
-
     started_at = _parse_iso_datetime(active.get("started_at"))
-    # 경과시간 계산과 DB timestamp 저장은 UTC로 유지한다.
     ended_at = datetime.now(timezone.utc)
-    # 날짜별 합계는 한국 시간(KST)을 기준으로 저장한다.
-    study_date = ended_at.astimezone(ZoneInfo("Asia/Seoul")).date().isoformat()
 
     if not started_at:
         raise RuntimeError("집중 세션 시작 시간이 올바르지 않습니다.")
 
-    duration_seconds = max(0, int((ended_at - started_at).total_seconds()))
-    duration_seconds = min(duration_seconds, 24 * 3600)
+    actual_duration_seconds = max(
+        0,
+        int((ended_at - started_at).total_seconds()),
+    )
 
-    # 10초가 지나기 전에는 세션을 종료하지 않는다.
-    # 기존처럼 세션을 닫고 기록만 버리는 동작을 막는다.
-    if duration_seconds < 10:
-        remaining_seconds = 10 - duration_seconds
+    # 최소 10초가 지나기 전에는 종료 자체를 허용하지 않는다.
+    if actual_duration_seconds < 10:
+        remaining_seconds = 10 - actual_duration_seconds
         raise ValueError(
             f"집중 모드는 시작 후 10초가 지나야 종료할 수 있습니다. "
             f"{remaining_seconds}초 남았습니다."
         )
 
-    # 먼저 활성 상태를 원자적으로 해제한다. 같은 요청이 중복 실행되어도
-    # 한 번만 처리되도록 is_active 조건을 함께 사용한다.
+    MAX_FOCUS_SECONDS = 24 * 3600
+    was_capped = actual_duration_seconds > MAX_FOCUS_SECONDS
+
+    # 24시간을 넘긴 세션은 시작 시각부터 정확히 24시간까지만 인정한다.
+    counted_ended_at = (
+        started_at + timedelta(seconds=MAX_FOCUS_SECONDS)
+        if was_capped
+        else ended_at
+    )
+    duration_seconds = min(
+        actual_duration_seconds,
+        MAX_FOCUS_SECONDS,
+    )
+
+    # 먼저 활성 상태를 원자적으로 해제한다.
     update_result = (
         supabase
         .table("active_study_sessions")
         .update({
             "is_active": False,
+            # 실제 종료 시각은 그대로 남겨 관리/추적에 사용한다.
             "ended_at": ended_at.isoformat(),
         })
         .eq("id", active["id"])
@@ -759,25 +770,36 @@ def stop_focus_session(user_id, client_token):
     if not (update_result.data or []):
         raise LookupError("이미 종료된 집중 세션입니다.")
 
-    record = None
-    if duration_seconds >= 10:
-        segments=_split_session_by_kst_date(started_at, ended_at)
-        records=[]
-        updated_dates=set()
-        for seg in segments:
-            rec=create_study_record({
-                "user_id": user_id,
-                "subject": active.get("subject") or "기타",
-                "duration_seconds": seg["duration_seconds"],
-                "study_date": seg["study_date"],
-                "started_at": seg["started_at"].isoformat(),
-                "ended_at": seg["ended_at"].isoformat(),
-            })
-            records.append(rec)
-            if seg["study_date"] not in updated_dates:
-                update_daily_study_stats(user_id, seg["study_date"])
-                updated_dates.add(seg["study_date"])
-        record=records
+    # 공부 기록은 KST 자정 기준으로 나누되,
+    # 24시간을 초과한 구간은 절대 저장하지 않는다.
+    segments = _split_session_by_kst_date(
+        started_at,
+        counted_ended_at,
+    )
+
+    records = []
+    updated_dates = set()
+
+    for seg in segments:
+        if seg["duration_seconds"] <= 0:
+            continue
+
+        rec = create_study_record({
+            "user_id": user_id,
+            "subject": active.get("subject") or "기타",
+            "duration_seconds": seg["duration_seconds"],
+            "study_date": seg["study_date"],
+            "started_at": seg["started_at"].isoformat(),
+            "ended_at": seg["ended_at"].isoformat(),
+        })
+        records.append(rec)
+
+        if seg["study_date"] not in updated_dates:
+            update_daily_study_stats(
+                user_id,
+                seg["study_date"],
+            )
+            updated_dates.add(seg["study_date"])
 
     return {
         "session": {
@@ -785,6 +807,9 @@ def stop_focus_session(user_id, client_token):
             "is_active": False,
             "ended_at": ended_at.isoformat(),
         },
-        "record": record,
+        "record": records,
         "duration_seconds": duration_seconds,
+        "actual_duration_seconds": actual_duration_seconds,
+        "was_capped": was_capped,
+        "max_focus_seconds": MAX_FOCUS_SECONDS,
     }

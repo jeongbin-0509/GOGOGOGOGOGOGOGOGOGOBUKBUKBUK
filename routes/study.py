@@ -150,7 +150,11 @@ def register_study_routes(app):
             today = today_iso()
             return jsonify({
                 "success": True,
-                "message": "공부 기록이 저장되었습니다." if result["record"] else "10초 미만이라 기록하지 않았습니다.",
+                "message": (
+                    "최대 집중시간은 24시간만 기록 가능합니다."
+                    if result.get("was_capped")
+                    else "공부 기록이 저장되었습니다."
+                ),
                 **result,
                 "today_seconds": get_study_total(user["id"], today),
                 "total_seconds": get_study_total(user["id"]),
