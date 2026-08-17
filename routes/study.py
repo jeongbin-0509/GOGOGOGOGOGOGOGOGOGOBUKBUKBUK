@@ -16,6 +16,10 @@ def register_study_routes(app):
     @app.route("/api/study-records", methods=["POST"], endpoint="save_study_record")
     @login_required
     def save_study_record():
+        return jsonify({
+            "success": False,
+            "message": "이벤트가 종료되어 공부 기록은 더 이상 변경할 수 없습니다.",
+        }), 403
         try:
             data = get_request_data()
             subject = str(data.get("subject") or "").strip()
@@ -60,6 +64,10 @@ def register_study_routes(app):
     @app.route("/api/study-records/manual", methods=["POST"], endpoint="save_manual_record")
     @login_required
     def save_manual_record():
+        return jsonify({
+            "success": False,
+            "message": "이벤트가 종료되어 공부 기록은 더 이상 변경할 수 없습니다.",
+        }), 403
         try:
             data = get_request_data()
             subject = str(data.get("subject") or "").strip()
@@ -110,6 +118,10 @@ def register_study_routes(app):
     )
     @login_required
     def delete_study_record(record_id):
+        return jsonify({
+            "success": False,
+            "message": "이벤트가 종료되어 공부 기록은 더 이상 변경할 수 없습니다.",
+        }), 403
         try:
             user_id = session["user_id"]
             if not study_record_exists(record_id, user_id):

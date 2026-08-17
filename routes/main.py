@@ -1,5 +1,7 @@
 from flask import redirect, render_template, url_for
 
+from extensions import supabase
+
 from services.ranking_service import (
     find_class_rank,
     find_user_rank,
@@ -27,13 +29,37 @@ def register_main_routes(app):
             total_seconds = get_study_total(user["id"])
             recent_records = get_recent_records(user["id"], limit=10)
 
-            personal_rankings = get_personal_rankings(limit=20)
+            personal_rankings = get_personal_rankings(limit=500)
             today_rankings = get_today_rankings(limit=20)
-            class_rankings = get_class_rankings(limit=20)
+            class_rankings = get_class_rankings(limit=100)
 
             personal_rank = find_user_rank(personal_rankings, user["id"])
             today_rank = find_user_rank(today_rankings, user["id"])
             class_rank = find_class_rank(class_rankings, user["student_id"])
+
+            # 최종 등급은 8월 13일까지의 일별 공부 등급만 평균낸다.
+            # 8월 14일 이후 기록은 총 공부시간/랭킹에는 남아 있어도
+            # 최종 평균 등급 계산에는 포함하지 않는다.
+            grade_rows = (
+                supabase
+                .table("daily_study_stats")
+                .select("study_grade,study_date")
+                .eq("user_id", user["id"])
+                .lte("study_date", "2026-08-13")
+                .execute()
+            ).data or []
+
+            valid_grades = [
+                float(row["study_grade"])
+                for row in grade_rows
+                if row.get("study_grade") is not None
+            ]
+
+            final_average_grade = (
+                round(sum(valid_grades) / len(valid_grades), 2)
+                if valid_grades
+                else None
+            )
 
             goal_seconds = int(user.get("daily_goal_seconds") or 28800)
             if goal_seconds <= 0:
@@ -59,6 +85,7 @@ def register_main_routes(app):
                 personal_rank=personal_rank,
                 today_rank=today_rank,
                 class_rank=class_rank,
+                final_average_grade=final_average_grade,
                 goal_seconds=goal_seconds,
                 goal_percentage=goal_percentage,
                 study_grade=study_grade_info["grade"],
