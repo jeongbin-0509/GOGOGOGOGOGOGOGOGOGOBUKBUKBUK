@@ -12,11 +12,15 @@
       rel="stylesheet"
     />
 
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='css/style.css') }}"
-    />
+   <link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/base.css') }}"
+/>
 
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/login.css') }}"
+/>
     <link
       rel="shortcut icon"
       href="{{ url_for('static', filename='image/logo.png') }}"
@@ -78,6 +82,13 @@
 
               <span> 자동 로그인 </span>
             </label>
+
+            <a
+              class="forgot-password-link"
+              href="{{ url_for('forgot_password') }}"
+            >
+              비밀번호 찾기
+            </a>
           </div>
 
           <p id="loginMessage" class="form-message" hidden></p>

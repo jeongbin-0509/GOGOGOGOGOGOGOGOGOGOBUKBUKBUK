@@ -1,28 +1,60 @@
 <!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>돼지런한 여름방학 · 최종 결과</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
-  <link rel="shortcut icon" href="{{ url_for('static', filename='image/logo.png') }}" type="image/x-icon" />
-</head>
-<body class="final-results-page">
-  {% macro format_time(seconds) -%}
-    {% set s = (seconds or 0) | int %}
-    {% set h = s // 3600 %}
-    {% set m = (s % 3600) // 60 %}
-    {{ h }}시간 {{ m }}분
-  {%- endmacro %}
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>혜윰X세콜 &lt;돼지런한 여름방학&gt;</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <link
+      rel="shortcut icon"
+      href="{{ url_for('static', filename='image/logo.png') }}"
+      type="image/x-icon"
+    />
+  </head>
 
-  <header class="topbar container final-topbar">
-    <div class="topbar-logo">
-      <img src="{{ url_for('static', filename='image/logo.png') }}" alt="로고" />
-      <h1>혜윰X세콜 &lt;돼지런한 여름방학&gt;</h1>
-    </div>
-    <a class="btn btn-outline btn-sm" href="{{ url_for('logout') }}">로그아웃</a>
-  </header>
+  <body>
+    {# 시간 표시 함수 #} {% macro format_time(seconds) %} {% set seconds =
+    seconds | int %} {% set hours = seconds // 3600 %} {% set minutes = (seconds
+    % 3600) // 60 %} {% set secs = seconds % 60 %} {{ "%02d:%02d:%02d" |
+    format(hours, minutes, secs) }} {% endmacro %} {# 현재 사용자 반 코드 #} {%
+    set user_class_code = user.student_id[:3] %} {# 반 순위 찾기 #} {% set
+    class_rank_data = namespace(rank=None, class_no=None) %} {% for class_item
+    in class_rankings %} {% if class_item.class_code|string ==
+    user_class_code|string %} {% set class_rank_data.rank = class_item.rank %}
+    {% set class_rank_data.class_no = class_item.class_no %} {% endif %} {%
+    endfor %} {# 백엔드 연결 전 임시 기본값 #} {% set current_grade =
+    study_grade | default(5) | int %} {% set current_grade_point = grade_point |
+    default(1) | int %} {% set remaining_grade_seconds = next_grade_seconds |
+    default(7200) | int %}
+
+    <!-- 상단 메뉴 -->
+    <header class="topbar container" id="mainTopbar">
+      <div class="topbar-logo">
+        <img
+          src="{{ url_for('static', filename='image/logo.png') }}"
+          alt="로고"
+        />
+
+        <h1>혜윰X세콜 &lt;돼지런한 여름방학&gt;</h1>
+      </div>
+
+      <nav class="topbar-menu">
+        <a href="#home" class="topbar-link active"> 홈 </a>
+
+        <a href="#records"> 기록 </a>
+
+        <a href="#ranking"> 랭킹 </a>
+
+        <a href="#my"> MY </a>
+      </nav>
+    </header>
 
   <main class="container final-results-wrap">
     <section class="final-hero card">
@@ -83,17 +115,100 @@
                 {% if item_total %}<small>{{ format_time(item_total) }}</small>{% endif %}
               </div>
             </div>
-          {% else %}
-            <p class="empty-message">최종 개인 랭킹 데이터가 없습니다.</p>
-          {% endfor %}
-        </div>
-      </article>
 
-      <article class="card final-ranking-card">
-        <div class="final-section-head">
-          <div>
-            <p class="caption">FINAL CLASS RANKING</p>
-            <h3>학급 최종 랭킹</h3>
+            <!-- 과목 선택 -->
+            <div class="timer-subject">
+              <select id="timerSubject" class="input">
+                <!-- 과목 선택 -->
+                <!-- 과목 선택 -->
+                <div class="study-subject-section">
+                  <div class="study-section-header">
+                    <div>
+                      <p class="study-section-label">공부 과목</p>
+                      <strong id="selectedSubjectText"
+                        >과목을 선택해 주세요</strong
+                      >
+                    </div>
+
+                    <button
+                      id="openSubjectEditorButton"
+                      class="subject-edit-button"
+                      type="button"
+                    >
+                      과목 수정
+                    </button>
+                  </div>
+
+                  <!-- JS가 과목 버튼을 생성하는 영역 -->
+                  <div id="subjectList" class="subject-list"></div>
+
+                  <!-- 실제 선택값 -->
+                  <input id="timerSubject" type="hidden" value="" />
+                </div>
+              </select>
+            </div>
+
+            <div class="btn-group">
+              <button
+                id="startStudyButton"
+                class="btn btn-primary btn-lg"
+                type="button"
+              >
+                공부 시작
+              </button>
+
+              <button
+                id="stopStudyButton"
+                class="btn btn-outline btn-lg"
+                type="button"
+                disabled
+              >
+                공부 종료
+              </button>
+            </div>
+
+            <p id="timerMessage" class="form-message" hidden></p>
+          </div>
+
+          <!-- 오늘의 공부 기록 -->
+          <div class="card home-record" id="records">
+            <div class="card-header">
+              <div>
+                <p class="caption">오늘 저장된 기록</p>
+
+                <h3 class="title">오늘의 공부 기록</h3>
+              </div>
+            </div>
+
+            <div class="home-record-list" id="recordList">
+              {# 백엔드에서 아직 today_records를 보내지 않는다면
+              recent_records를 임시로 사용 #} {% set displayed_records =
+              today_records | default(recent_records) %} {% if displayed_records
+              %} {% for record in displayed_records %}
+              <div class="record-item" data-record-id="{{ record.id }}">
+                <div class="record-info">
+                  <strong> {{ record.subject }} </strong>
+
+                  <span class="record-date"> {{ record.study_date }} </span>
+                </div>
+
+                <div class="record-actions">
+                  <span> {{ format_time(record.duration_seconds) }} </span>
+
+                  <button
+                    class="record-delete-button"
+                    type="button"
+                    data-record-id="{{ record.id }}"
+                    aria-label="공부 기록 삭제"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+              {% endfor %} {% else %}
+              <div class="empty-message">오늘 저장된 공부 기록이 없습니다.</div>
+              {% endif %}
+            </div>
           </div>
         </div>
         <div class="final-ranking-list">
@@ -136,7 +251,18 @@
         {% endif %}
         <strong>{{ format_time(total_seconds) }}</strong>
       </div>
-    </section>
-  </main>
-</body>
+    </div>
+    <script>
+      window.STUDY_PAGE_DATA = {
+        todaySeconds: {{ today_seconds | int }},
+        goalSeconds: {{ goal_seconds | int }},
+        goalPercentage: {{ goal_percentage | int }},
+        studyGrade: {{ current_grade }},
+        gradePoint: {{ current_grade_point }},
+        nextGradeSeconds: {{ remaining_grade_seconds }}
+      };
+    </script>
+
+    <script src="{{ url_for('static', filename='js/study.js') }}"></script>
+  </body>
 </html>
