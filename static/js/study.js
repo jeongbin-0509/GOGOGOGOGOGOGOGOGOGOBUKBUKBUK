@@ -1,388 +1,332 @@
+"use strict";
+
 document.addEventListener("DOMContentLoaded", () => {
   const pageData = window.STUDY_PAGE_DATA || {};
 
   // =========================================================
-  // 기본 대시보드 요소
+  // 기본 설정
   // =========================================================
-  const dashboardView = document.getElementById("dashboardView");
-  const mainTopbar = document.getElementById("mainTopbar");
-  const todayStudyTime = document.getElementById("todayStudyTime");
-  const timerStatusBadge = document.getElementById("timerStatusBadge");
-  const goalPercentage = document.getElementById("goalPercentage");
-  const goalProgressFill = document.getElementById("goalProgressFill");
-  const timerSubject = document.getElementById("timerSubject");
-  const subjectList = document.getElementById("subjectList");
-  const selectedSubjectText = document.getElementById("selectedSubjectText");
-  const openSubjectEditorButton = document.getElementById(
-    "openSubjectEditorButton",
-  );
-  const subjectEditorModal = document.getElementById("subjectEditorModal");
-  const closeSubjectEditorButton = document.getElementById(
-    "closeSubjectEditorButton",
-  );
-  const addSubjectForm = document.getElementById("addSubjectForm");
-  const newSubjectInput = document.getElementById("newSubjectInput");
-  const subjectEditorList = document.getElementById("subjectEditorList");
-  const subjectEditorMessage = document.getElementById("subjectEditorMessage");
-  const resetSubjectsButton = document.getElementById("resetSubjectsButton");
-  const saveSubjectsButton = document.getElementById("saveSubjectsButton");
-  const gradeLevelElements = document.querySelectorAll("[data-grade-level]");
-  const startStudyButton = document.getElementById("startStudyButton");
-  const selectedSubjectText = document.getElementById("selectedSubjectText");
-  const subjectSelectorStatus = document.getElementById(
-    "subjectSelectorStatus",
-  );
-  const todayGradeNumber = document.getElementById("todayGradeNumber");
-  const gradeLevelElements = document.querySelectorAll("[data-grade-level]");
-  const startStudyButton = document.getElementById("startStudyButton");
-  const stopStudyButton = document.getElementById("stopStudyButton");
-  const timerMessage = document.getElementById("timerMessage");
-
-  // =========================================================
-  // 오늘 등급 요소
-  // =========================================================
-  const todayGrade = document.getElementById("todayGrade");
-  const todayGradeBadge = document.getElementById("todayGradeBadge");
-  const todayGradePoint = document.getElementById("todayGradePoint");
-  const nextGradeText = document.getElementById("nextGradeText");
-
-  // =========================================================
-  // 집중 모드 요소
-  // =========================================================
-  const focusMode = document.getElementById("focusMode");
-  const focusSubject = document.getElementById("focusSubject");
-  const focusTimer = document.getElementById("focusTimer");
-
-  const focusTodayTime = document.getElementById("focusTodayTime");
-  const focusGrade = document.getElementById("focusGrade");
-  const focusGoalPercentage = document.getElementById("focusGoalPercentage");
-
-  const focusNextGradeText = document.getElementById("focusNextGradeText");
-
-  const focusStatusBadge = document.getElementById("focusStatusBadge");
-
-  const focusInterruptionMessage = document.getElementById(
-    "focusInterruptionMessage",
-  );
-
-  const resumeFocusButton = document.getElementById("resumeFocusButton");
-
-  const focusStopButton = document.getElementById("focusStopButton");
-
-  // =========================================================
-  // 초기 데이터
-  // =========================================================
-  const baseTodaySeconds = Number(
-    todayStudyTime?.dataset.seconds ?? pageData.todaySeconds ?? 0,
-  );
-
-  const goalSeconds = Math.max(1, Number(pageData.goalSeconds || 28800));
-
-  let sessionSeconds = 0;
-
-  /*
-   * idle    : 공부 시작 전
-   * running : 공부 시간 측정 중
-   * paused  : 화면 이탈 등으로 일시정지
-   * saving  : 서버 저장 중
-   */
-  let timerState = "idle";
-
-  let startedAt = null;
-  let timerInterval = null;
-  let previousTickTime = null;
-  let selectedSubject = "";
 
   const DEFAULT_SUBJECTS = [
     "국어",
     "수학",
     "영어",
-    "물리",
-    "화학",
-    "생명과학",
-    "지구과학",
-    "사회",
-    "한국사",
-    "정보",
     "기타",
   ];
 
   const SUBJECT_STORAGE_KEY = "studySubjects";
+  const ACTIVE_SESSION_KEY = "activeStudySession";
 
-  let subjects = loadSubjects();
-  let editingSubjects = [...subjects];
+  let currentTodaySeconds = Math.max(
+    0,
+    Number(pageData.todaySeconds) || 0,
+  );
 
-  function loadSubjects() {
-    try {
-      const savedSubjects = JSON.parse(
-        localStorage.getItem(SUBJECT_STORAGE_KEY),
-      );
+  let currentTotalSeconds = 0;
 
-      if (Array.isArray(savedSubjects) && savedSubjects.length > 0) {
-        return savedSubjects.filter(
-          (subject) => typeof subject === "string" && subject.trim(),
-        );
-      }
-    } catch (error) {
-      console.error("과목 목록 불러오기 오류:", error);
-    }
+  const goalSeconds = Math.max(
+    1,
+    Number(pageData.goalSeconds) || 28800,
+  );
 
-    return [...DEFAULT_SUBJECTS];
-  }
+  const focusUrl = String(
+    pageData.focusUrl || "/focus",
+  );
 
-  function saveSubjects() {
-    localStorage.setItem(SUBJECT_STORAGE_KEY, JSON.stringify(subjects));
-  }
+  const focusStatusUrl = String(
+    pageData.focusStatusUrl ||
+      "/api/focus-session/status",
+  );
 
-  function getSubjectIcon(subject) {
-    return subject.trim().charAt(0) || "?";
-  }
+  const logoutUrl = String(
+    pageData.logoutUrl || "/logout",
+  );
 
-  function selectSubject(subject) {
-    if (
-      timerState === "running" ||
-      timerState === "paused" ||
-      timerState === "saving"
-    ) {
-      return;
-    }
+  const updateRecordUrlTemplate = String(
+    pageData.updateRecordUrlTemplate ||
+      pageData.deleteRecordUrlTemplate ||
+      "/api/study-records/__RECORD_ID__",
+  );
 
-    selectedSubject = subject;
+  // =========================================================
+  // DOM
+  // =========================================================
 
-    if (timerSubject) {
-      timerSubject.value = subject;
-    }
+  const todayStudyTime =
+    document.getElementById("todayStudyTime");
 
-    if (selectedSubjectText) {
-      selectedSubjectText.textContent = `${subject} 선택됨`;
-    }
+  const dailyGoalText =
+    document.getElementById("dailyGoalText");
 
-    renderSubjectButtons();
-    updateTimerState("idle");
-    hideMessage(timerMessage);
-  }
-
-  function renderSubjectButtons() {
-    if (!subjectList) {
-      return;
-    }
-
-    subjectList.innerHTML = "";
-
-    subjects.forEach((subject) => {
-      const button = document.createElement("button");
-
-      button.type = "button";
-      button.className = "subject-choice-button";
-
-      if (subject === selectedSubject) {
-        button.classList.add("active");
-      }
-
-      button.setAttribute("aria-pressed", String(subject === selectedSubject));
-
-      const icon = document.createElement("span");
-
-      icon.className = "subject-choice-icon";
-      icon.textContent = getSubjectIcon(subject);
-
-      const name = document.createElement("span");
-
-      name.className = "subject-choice-name";
-      name.textContent = subject;
-
-      button.append(icon, name);
-
-      button.addEventListener("click", () => {
-        selectSubject(subject);
-      });
-
-      subjectList.appendChild(button);
-    });
-  }
-
-  function openSubjectEditor() {
-    if (
-      timerState === "running" ||
-      timerState === "paused" ||
-      timerState === "saving"
-    ) {
-      showMessage(timerMessage, "공부 중에는 과목을 수정할 수 없습니다.");
-
-      return;
-    }
-
-    editingSubjects = [...subjects];
-
-    renderSubjectEditorList();
-    hideMessage(subjectEditorMessage);
-
-    if (subjectEditorModal) {
-      subjectEditorModal.hidden = false;
-    }
-
-    document.body.style.overflow = "hidden";
-
-    window.setTimeout(() => {
-      newSubjectInput?.focus();
-    }, 50);
-  }
-
-  function closeSubjectEditor() {
-    if (subjectEditorModal) {
-      subjectEditorModal.hidden = true;
-    }
-
-    document.body.style.overflow = "";
-    hideMessage(subjectEditorMessage);
-  }
-
-  function renderSubjectEditorList() {
-    if (!subjectEditorList) {
-      return;
-    }
-
-    subjectEditorList.innerHTML = "";
-
-    editingSubjects.forEach((subject, index) => {
-      const item = document.createElement("div");
-
-      item.className = "subject-editor-item";
-
-      const nameArea = document.createElement("div");
-
-      nameArea.className = "subject-editor-item-name";
-
-      const icon = document.createElement("span");
-
-      icon.className = "subject-editor-item-icon";
-
-      icon.textContent = getSubjectIcon(subject);
-
-      const name = document.createElement("span");
-
-      name.textContent = subject;
-
-      nameArea.append(icon, name);
-
-      const deleteButton = document.createElement("button");
-
-      deleteButton.type = "button";
-      deleteButton.className = "subject-delete-button";
-      deleteButton.textContent = "삭제";
-
-      deleteButton.addEventListener("click", () => {
-        if (editingSubjects.length <= 1) {
-          showMessage(
-            subjectEditorMessage,
-            "과목은 최소 1개 이상 있어야 합니다.",
-          );
-
-          return;
-        }
-
-        editingSubjects.splice(index, 1);
-        renderSubjectEditorList();
-      });
-
-      item.append(nameArea, deleteButton);
-      subjectEditorList.appendChild(item);
-    });
-  }
-
-  function addNewSubject() {
-    const subject = newSubjectInput?.value.trim() || "";
-
-    if (!subject) {
-      showMessage(subjectEditorMessage, "추가할 과목 이름을 입력해 주세요.");
-
-      newSubjectInput?.focus();
-      return;
-    }
-
-    if (subject.length > 10) {
-      showMessage(
-        subjectEditorMessage,
-        "과목 이름은 10자 이하로 입력해 주세요.",
-      );
-
-      return;
-    }
-
-    const duplicated = editingSubjects.some(
-      (item) => item.toLowerCase() === subject.toLowerCase(),
+  const dailyGoalProgress =
+    document.getElementById(
+      "dailyGoalProgress",
     );
 
-    if (duplicated) {
-      showMessage(subjectEditorMessage, "이미 등록된 과목입니다.");
+  const progressBar =
+    document.querySelector(".progress-bar");
 
-      return;
-    }
-
-    editingSubjects.push(subject);
-
-    if (newSubjectInput) {
-      newSubjectInput.value = "";
-    }
-
-    hideMessage(subjectEditorMessage);
-    renderSubjectEditorList();
-    newSubjectInput?.focus();
-  }
-
-  function applySubjectChanges() {
-    subjects = [...editingSubjects];
-    saveSubjects();
-
-    if (selectedSubject && !subjects.includes(selectedSubject)) {
-      selectedSubject = "";
-
-      if (timerSubject) {
-        timerSubject.value = "";
-      }
-
-      if (selectedSubjectText) {
-        selectedSubjectText.textContent = "과목을 선택해 주세요";
-      }
-    }
-
-    renderSubjectButtons();
-    updateTimerState("idle");
-    closeSubjectEditor();
-  }
-
-  // =========================================================
-  // 시간 형식 변환
-  // =========================================================
-  function formatTime(seconds) {
-    const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
-
-    const hours = String(Math.floor(safeSeconds / 3600)).padStart(2, "0");
-
-    const minutes = String(Math.floor((safeSeconds % 3600) / 60)).padStart(
-      2,
-      "0",
+  const studyStatusBadge =
+    document.getElementById(
+      "studyStatusBadge",
     );
 
-    const secs = String(safeSeconds % 60).padStart(2, "0");
+  const subjectList =
+    document.getElementById("subjectList");
 
-    return `${hours}:${minutes}:${secs}`;
+  const timerSubject =
+    document.getElementById("timerSubject");
+
+  const startStudyButton =
+    document.getElementById(
+      "startStudyButton",
+    );
+
+  const dashboardMessage =
+    document.getElementById(
+      "dashboardMessage",
+    );
+
+  const logoutButton =
+    document.getElementById(
+      "logoutButton",
+    );
+
+  const mobileLogoutButton =
+    document.getElementById(
+      "mobileLogoutButton",
+    );
+
+  const todayRecordList =
+    document.getElementById(
+      "todayRecordList",
+    );
+
+  const todayRecordCount =
+    document.getElementById(
+      "todayRecordCount",
+    );
+
+  const totalStudyHours =
+    document.getElementById(
+      "totalStudyHours",
+    );
+
+  const totalStudyDetail =
+    document.getElementById(
+      "totalStudyDetail",
+    );
+
+  const subjectEditorModal =
+    document.getElementById(
+      "subjectEditorModal",
+    );
+
+  const subjectEditorBackdrop =
+    document.getElementById(
+      "subjectEditorBackdrop",
+    );
+
+  const openSubjectEditorButton =
+    document.getElementById(
+      "openSubjectEditorButton",
+    );
+
+  const closeSubjectEditorButton =
+    document.getElementById(
+      "closeSubjectEditorButton",
+    );
+
+  const finishSubjectEditorButton =
+    document.getElementById(
+      "finishSubjectEditorButton",
+    );
+
+  const subjectAddForm =
+    document.getElementById(
+      "subjectAddForm",
+    );
+
+  const newSubjectInput =
+    document.getElementById(
+      "newSubjectInput",
+    );
+
+  const subjectEditorList =
+    document.getElementById(
+      "subjectEditorList",
+    );
+
+  const subjectEditorMessage =
+    document.getElementById(
+      "subjectEditorMessage",
+    );
+
+  // =========================================================
+  // 상태
+  // =========================================================
+
+  let subjects = [];
+  let editingSubjects = [];
+  let selectedSubject = "";
+  let serverActiveSession = null;
+
+  let editingRecord = null;
+  let recordEditModal = null;
+
+  // =========================================================
+  // 공통 함수
+  // =========================================================
+
+  function escapeHTML(value) {
+    const element =
+      document.createElement("div");
+
+    element.textContent = String(
+      value ?? "",
+    );
+
+    return element.innerHTML;
   }
 
-  // =========================================================
-  // 메시지 표시
-  // =========================================================
-  function showMessage(element, message, type = "error") {
+  function formatClock(totalSeconds) {
+    const safeSeconds = Math.max(
+      0,
+      Math.floor(
+        Number(totalSeconds) || 0,
+      ),
+    );
+
+    const hours = String(
+      Math.floor(safeSeconds / 3600),
+    ).padStart(2, "0");
+
+    const minutes = String(
+      Math.floor(
+        (safeSeconds % 3600) / 60,
+      ),
+    ).padStart(2, "0");
+
+    const seconds = String(
+      safeSeconds % 60,
+    ).padStart(2, "0");
+
+    return `${hours}:${minutes}:${seconds}`;
+  }
+
+  function formatFlexibleDuration(
+    totalSeconds,
+  ) {
+    const safeSeconds = Math.max(
+      0,
+      Math.floor(
+        Number(totalSeconds) || 0,
+      ),
+    );
+
+    const hours = Math.floor(
+      safeSeconds / 3600,
+    );
+
+    const minutes = Math.floor(
+      (safeSeconds % 3600) / 60,
+    );
+
+    const seconds =
+      safeSeconds % 60;
+
+    const parts = [];
+
+    if (hours > 0) {
+      parts.push(`${hours}시간`);
+    }
+
+    if (minutes > 0) {
+      parts.push(`${minutes}분`);
+    }
+
+    if (seconds > 0) {
+      parts.push(`${seconds}초`);
+    }
+
+    if (parts.length === 0) {
+      return "0초";
+    }
+
+    return parts.join(" ");
+  }
+
+  function parseLocalDate(value) {
+    const dateText = String(
+      value || "",
+    ).slice(0, 10);
+
+    const parts = dateText
+      .split("-")
+      .map(Number);
+
+    if (
+      parts.length !== 3 ||
+      !parts[0] ||
+      !parts[1] ||
+      !parts[2]
+    ) {
+      return null;
+    }
+
+    return new Date(
+      parts[0],
+      parts[1] - 1,
+      parts[2],
+    );
+  }
+
+  function formatRelativeDate(value) {
+    const recordDate =
+      parseLocalDate(value);
+
+    if (!recordDate) {
+      return "";
+    }
+
+    const today = new Date();
+
+    today.setHours(0, 0, 0, 0);
+    recordDate.setHours(0, 0, 0, 0);
+
+    const differenceDays = Math.round(
+      (
+        today.getTime() -
+        recordDate.getTime()
+      ) / 86400000,
+    );
+
+    if (differenceDays <= 0) {
+      return "오늘";
+    }
+
+    return `${differenceDays}일 전`;
+  }
+
+  function normalizeSubjectName(value) {
+    return String(value || "")
+      .trim()
+      .replace(/\s+/g, " ");
+  }
+
+  function showMessage(
+    element,
+    message,
+    type = "error",
+  ) {
     if (!element) {
-      if (type === "error") {
-        window.alert(message);
-      }
-
       return;
     }
 
     element.textContent = message;
-    element.className = `form-message ${type}`;
+    element.className =
+      `form-message ${type}`;
+
     element.hidden = false;
   }
 
@@ -392,843 +336,1867 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     element.textContent = "";
-    element.className = "form-message";
+    element.className =
+      "form-message";
+
     element.hidden = true;
   }
 
-  // =========================================================
-  // 서버 응답 처리
-  // =========================================================
-  async function readJsonResponse(response) {
-    const contentType = response.headers.get("content-type") || "";
-
-    if (!contentType.includes("application/json")) {
-      const text = await response.text();
-
-      console.error("JSON이 아닌 서버 응답:", response.status, text);
-
-      throw new Error(`서버 응답 오류 (${response.status})`);
-    }
-
-    return response.json();
-  }
-
-  async function requestJson(url, options = {}) {
+  async function requestJSON(
+    url,
+    options = {},
+  ) {
     const response = await fetch(url, {
+      method: options.method || "GET",
       credentials: "same-origin",
-      ...options,
-
       headers: {
-        ...(options.body
-          ? {
-              "Content-Type": "application/json",
-            }
-          : {}),
-
+        Accept: "application/json",
+        "Content-Type":
+          "application/json",
         ...(options.headers || {}),
       },
+      body:
+        options.body === undefined
+          ? undefined
+          : JSON.stringify(
+              options.body,
+            ),
     });
 
-    const result = await readJsonResponse(response);
+    let result = {};
 
-    if (response.status === 401 && result.redirect) {
-      window.location.href = result.redirect;
-
-      throw new Error("로그인이 필요합니다.");
+    try {
+      result = await response.json();
+    } catch {
+      result = {};
     }
 
-    if (!response.ok || result.success === false) {
-      throw new Error(result.message || "요청 처리에 실패했습니다.");
+    if (response.status === 401) {
+      window.location.href =
+        "/login";
+
+      throw new Error(
+        "로그인이 필요합니다.",
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        result.message ||
+          result.error ||
+          "요청을 처리하지 못했습니다.",
+      );
     }
 
     return result;
   }
 
   // =========================================================
-  // 공부 등급 계산
-  //
-  // 1등급: 10시간 이상
-  // 2등급: 7시간 이상
-  // 3등급: 4시간 이상
-  // 4등급: 2시간 이상
-  // 5등급: 2시간 미만
+  // 과목 DB 저장 및 기존 localStorage 마이그레이션
   // =========================================================
-  function calculateGrade(totalSeconds) {
-    if (totalSeconds >= 10 * 3600) {
-      return {
-        grade: 1,
-        point: 5,
-        nextGrade: null,
-        remainingSeconds: 0,
-      };
-    }
 
-    if (totalSeconds >= 7 * 3600) {
-      return {
-        grade: 2,
-        point: 4,
-        nextGrade: 1,
-        remainingSeconds: 10 * 3600 - totalSeconds,
-      };
-    }
+  function loadLegacySubjects() {
+    try {
+      const savedValue = localStorage.getItem(
+        SUBJECT_STORAGE_KEY,
+      );
 
-    if (totalSeconds >= 4 * 3600) {
-      return {
-        grade: 3,
-        point: 3,
-        nextGrade: 2,
-        remainingSeconds: 7 * 3600 - totalSeconds,
-      };
-    }
+      if (!savedValue) {
+        return [...DEFAULT_SUBJECTS];
+      }
 
-    if (totalSeconds >= 2 * 3600) {
-      return {
-        grade: 4,
-        point: 2,
-        nextGrade: 3,
-        remainingSeconds: 4 * 3600 - totalSeconds,
-      };
-    }
+      const parsedValue = JSON.parse(savedValue);
 
-    return {
-      grade: 5,
-      point: 1,
-      nextGrade: 4,
-      remainingSeconds: 2 * 3600 - totalSeconds,
-    };
+      if (!Array.isArray(parsedValue)) {
+        return [...DEFAULT_SUBJECTS];
+      }
+
+      const normalizedSubjects = [
+        ...new Set(
+          parsedValue
+            .map(normalizeSubjectName)
+            .filter(Boolean),
+        ),
+      ].slice(0, 20);
+
+      return normalizedSubjects.length > 0
+        ? normalizedSubjects
+        : [...DEFAULT_SUBJECTS];
+    } catch (error) {
+      console.error(
+        "기존 과목 목록 확인 오류:",
+        error,
+      );
+
+      return [...DEFAULT_SUBJECTS];
+    }
   }
 
-  function getGradeMessage(gradeInfo) {
-    if (gradeInfo.grade === 1) {
-      return "오늘 최고 등급을 달성했습니다.";
+  function removeLegacySubjects() {
+    try {
+      localStorage.removeItem(
+        SUBJECT_STORAGE_KEY,
+      );
+    } catch (error) {
+      console.error(
+        "기존 과목 목록 삭제 오류:",
+        error,
+      );
+    }
+  }
+
+  async function requestSaveSubjects(
+    nextSubjects,
+  ) {
+    const result = await requestJSON(
+      "/api/study-subjects",
+      {
+        method: "PUT",
+        body: {
+          subjects: nextSubjects,
+        },
+      },
+    );
+
+    return Array.isArray(result.subjects)
+      ? result.subjects
+          .map(normalizeSubjectName)
+          .filter(Boolean)
+      : [...nextSubjects];
+  }
+
+  async function loadSubjects() {
+    const result = await requestJSON(
+      "/api/study-subjects",
+    );
+
+    let loadedSubjects = Array.isArray(
+      result.subjects,
+    )
+      ? result.subjects
+          .map(normalizeSubjectName)
+          .filter(Boolean)
+      : [];
+
+    // DB에 과목이 한 번도 저장되지 않은 계정은 기존
+    // localStorage 목록을 최초 1회 DB로 이전한다.
+    if (
+      !result.initialized ||
+      loadedSubjects.length === 0
+    ) {
+      loadedSubjects = await requestSaveSubjects(
+        loadLegacySubjects(),
+      );
     }
 
-    return (
-      `${gradeInfo.nextGrade}등급까지 ` +
-      `${formatTime(gradeInfo.remainingSeconds)} 남았습니다.`
+    subjects = loadedSubjects;
+    editingSubjects = [...subjects];
+    removeLegacySubjects();
+
+    renderSubjectList();
+    updateStartButton();
+  }
+
+  // =========================================================
+  // 진행 중인 집중 세션
+  // =========================================================
+
+  function getActiveSession() {
+    return serverActiveSession;
+  }
+
+  async function loadActiveFocusSession() {
+    const response = await fetch(focusStatusUrl, {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      window.location.href = "/login";
+      return null;
+    }
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.message ||
+          "진행 중인 집중 모드를 확인하지 못했습니다.",
+      );
+    }
+
+    serverActiveSession =
+      result.active && result.session
+        ? result.session
+        : null;
+
+    return serverActiveSession;
+  }
+
+  // =========================================================
+  // 공부시간 표시
+  // =========================================================
+
+  function updateDailySummary(
+    totalSeconds,
+  ) {
+    currentTodaySeconds = Math.max(
+      0,
+      Number(totalSeconds) || 0,
+    );
+
+    const currentMinutes =
+      Math.floor(
+        currentTodaySeconds / 60,
+      );
+
+    const goalMinutes =
+      Math.floor(goalSeconds / 60);
+
+    const percentage = Math.min(
+      100,
+      Math.round(
+        (
+          currentTodaySeconds /
+          goalSeconds
+        ) * 100,
+      ),
+    );
+
+    if (todayStudyTime) {
+      todayStudyTime.textContent =
+        formatClock(
+          currentTodaySeconds,
+        );
+    }
+
+    if (dailyGoalText) {
+      dailyGoalText.textContent =
+        `${currentMinutes} / ${goalMinutes}분`;
+    }
+
+    if (dailyGoalProgress) {
+      dailyGoalProgress.style.width =
+        `${percentage}%`;
+    }
+
+    if (progressBar) {
+      progressBar.setAttribute(
+        "aria-valuenow",
+        String(percentage),
+      );
+    }
+  }
+
+  function updateTotalSummary(
+    totalSeconds,
+  ) {
+    currentTotalSeconds = Math.max(
+      0,
+      Number(totalSeconds) || 0,
+    );
+
+    const formatted =
+      formatFlexibleDuration(
+        currentTotalSeconds,
+      );
+
+    if (totalStudyHours) {
+      totalStudyHours.textContent =
+        formatted;
+
+      totalStudyHours.style.fontSize =
+        "clamp(2rem, 5vw, 4rem)";
+
+      totalStudyHours.style.lineHeight =
+        "1.15";
+    }
+
+    const unitElement =
+      totalStudyHours?.nextElementSibling;
+
+    if (
+      unitElement &&
+      unitElement.matches(
+        ".body",
+      )
+    ) {
+      unitElement.hidden = true;
+    }
+
+    if (totalStudyDetail) {
+      totalStudyDetail.textContent =
+        `총 ${formatted} 동안 공부했습니다.`;
+    }
+  }
+
+  function updateStudyStatus() {
+    if (!studyStatusBadge) {
+      return;
+    }
+
+    const activeSession =
+      getActiveSession();
+
+    if (activeSession) {
+      studyStatusBadge.textContent =
+        `${activeSession.subject} 공부 진행 중`;
+
+      studyStatusBadge.classList.remove(
+        "badge-idle",
+      );
+
+      studyStatusBadge.classList.add(
+        "badge-active",
+      );
+    } else {
+      studyStatusBadge.textContent =
+        "공부 대기 중";
+
+      studyStatusBadge.classList.remove(
+        "badge-active",
+      );
+
+      studyStatusBadge.classList.add(
+        "badge-idle",
+      );
+    }
+  }
+
+  function renderDashboardSummary() {
+    updateDailySummary(
+      currentTodaySeconds,
+    );
+
+    updateStudyStatus();
+  }
+
+  // =========================================================
+  // 공부 기록 조회 및 표시
+  // =========================================================
+
+  async function loadStudySummary() {
+    if (todayRecordList) {
+      todayRecordList.innerHTML = `
+        <p class="empty-message">
+          공부 기록을 불러오는 중입니다.
+        </p>
+      `;
+    }
+
+    try {
+      const result =
+        await requestJSON(
+          "/api/study-summary",
+        );
+
+      updateDailySummary(
+        result.today_seconds,
+      );
+
+      updateTotalSummary(
+        result.total_seconds,
+      );
+
+      renderStudyRecords(
+        result.recent_records || [],
+      );
+    } catch (error) {
+      console.error(
+        "공부 요약 불러오기 오류:",
+        error,
+      );
+
+      if (todayRecordList) {
+        todayRecordList.innerHTML = `
+          <p class="empty-message">
+            공부 기록을 불러오지 못했습니다.
+          </p>
+        `;
+      }
+
+      showMessage(
+        dashboardMessage,
+        error.message,
+      );
+    }
+  }
+
+  function renderStudyRecords(records) {
+    if (
+      !todayRecordList ||
+      !todayRecordCount
+    ) {
+      return;
+    }
+
+    todayRecordList.innerHTML = "";
+    todayRecordCount.textContent =
+      `${records.length}개`;
+
+    if (records.length === 0) {
+      todayRecordList.innerHTML = `
+        <p class="empty-message">
+          아직 등록된 공부 기록이 없습니다.
+        </p>
+      `;
+
+      return;
+    }
+
+    records.forEach((record) => {
+      const item =
+        document.createElement("div");
+
+      item.className =
+        "home-record-item";
+
+      item.dataset.recordId =
+        String(record.id || "");
+
+      const durationSeconds =
+        Math.max(
+          0,
+          Number(
+            record.duration_seconds,
+          ) || 0,
+        );
+
+      const subject =
+        record.subject ||
+        record.subject_name ||
+        "과목";
+
+      const relativeDate =
+        formatRelativeDate(
+          record.study_date,
+        );
+
+      item.innerHTML = `
+        <div class="home-record-info">
+          <strong>
+            ${escapeHTML(subject)}
+          </strong>
+
+          <span class="record-duration-text">
+            ${escapeHTML(
+              formatFlexibleDuration(
+                durationSeconds,
+              ),
+            )}
+          </span>
+
+          <span class="record-relative-date">
+            ${escapeHTML(relativeDate)}
+          </span>
+        </div>
+
+        <div class="home-record-right">
+          <button
+            class="record-edit-button"
+            type="button"
+          >
+            수정
+          </button>
+        </div>
+      `;
+
+      const editButton =
+        item.querySelector(
+          ".record-edit-button",
+        );
+
+      editButton.addEventListener(
+        "click",
+        () => {
+          openRecordEditModal({
+            ...record,
+            subject,
+            duration_seconds:
+              durationSeconds,
+          });
+        },
+      );
+
+      todayRecordList.appendChild(
+        item,
+      );
+    });
+  }
+
+  // =========================================================
+  // 기록 수정 모달
+  // =========================================================
+
+  function installRecordEditStyles() {
+    if (
+      document.getElementById(
+        "recordEditDynamicStyles",
+      )
+    ) {
+      return;
+    }
+
+    const style =
+      document.createElement("style");
+
+    style.id =
+      "recordEditDynamicStyles";
+
+    style.textContent = `
+      .home-record-item {
+        align-items: center;
+      }
+
+      .home-record-info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+      }
+
+      .home-record-info strong {
+        font-size: 1.05rem;
+      }
+
+      .record-duration-text {
+        color: var(--text, #111827);
+        font-size: 1rem;
+        font-weight: 700;
+      }
+
+      .record-relative-date {
+        color: var(--muted, #6b7280);
+        font-size: 0.88rem;
+      }
+
+      .record-edit-button {
+        border: 0;
+        border-radius: 12px;
+        padding: 10px 14px;
+        background: #eef2ff;
+        color: #4f46e5;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .record-edit-button:hover {
+        background: #e0e7ff;
+      }
+
+      .record-edit-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .record-edit-modal {
+        position: fixed;
+        z-index: 2000;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+      }
+
+      .record-edit-modal[hidden] {
+        display: none;
+      }
+
+      .record-edit-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+      }
+
+      .record-edit-panel {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 440px);
+        border-radius: 22px;
+        padding: 24px;
+        background: #ffffff;
+        box-shadow:
+          0 24px 80px
+          rgba(15, 23, 42, 0.24);
+      }
+
+      .record-edit-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .record-edit-header h2 {
+        margin: 4px 0 0;
+        font-size: 1.4rem;
+      }
+
+      .record-edit-close {
+        width: 38px;
+        height: 38px;
+        border: 0;
+        border-radius: 50%;
+        background: #f3f4f6;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+
+      .record-edit-current {
+        margin: 20px 0;
+        border-radius: 14px;
+        padding: 14px 16px;
+        background: #f8fafc;
+      }
+
+      .record-edit-current span {
+        display: block;
+        color: #64748b;
+        font-size: 0.88rem;
+      }
+
+      .record-edit-current strong {
+        display: block;
+        margin-top: 4px;
+        font-size: 1.15rem;
+      }
+
+      .record-edit-time-inputs {
+        display: grid;
+        grid-template-columns:
+          repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .record-edit-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .record-edit-field label {
+        color: #64748b;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+
+      .record-edit-field input {
+        width: 100%;
+        border: 1px solid #dbe2ea;
+        border-radius: 12px;
+        padding: 12px 10px;
+        font: inherit;
+        text-align: center;
+      }
+
+      .record-edit-help {
+        margin: 12px 0 0;
+        color: #64748b;
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }
+
+      .record-edit-message {
+        margin: 12px 0 0;
+        color: #dc2626;
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+
+      .record-edit-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 22px;
+      }
+
+      @media (max-width: 520px) {
+        .record-edit-panel {
+          padding: 20px;
+        }
+
+        .record-edit-time-inputs {
+          gap: 7px;
+        }
+
+        .record-edit-field input {
+          padding-inline: 6px;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  function createRecordEditModal() {
+    installRecordEditStyles();
+
+    const modal =
+      document.createElement("section");
+
+    modal.className =
+      "record-edit-modal";
+
+    modal.hidden = true;
+
+    modal.setAttribute(
+      "role",
+      "dialog",
+    );
+
+    modal.setAttribute(
+      "aria-modal",
+      "true",
+    );
+
+    modal.innerHTML = `
+      <div
+        class="record-edit-backdrop"
+        data-record-edit-close
+      ></div>
+
+      <div class="record-edit-panel">
+        <div class="record-edit-header">
+          <div>
+            <p class="caption">
+              공부 기록 변경
+            </p>
+
+            <h2 id="recordEditTitle">
+              공부시간 수정
+            </h2>
+          </div>
+
+          <button
+            class="record-edit-close"
+            type="button"
+            data-record-edit-close
+            aria-label="닫기"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="record-edit-current">
+          <span>
+            현재 공부시간
+          </span>
+
+          <strong
+            id="recordEditCurrentTime"
+          ></strong>
+        </div>
+
+        <form id="recordEditForm">
+          <div class="record-edit-time-inputs">
+            <div class="record-edit-field">
+              <label for="recordEditHours">
+                시간
+              </label>
+
+              <input
+                id="recordEditHours"
+                type="number"
+                min="0"
+                step="1"
+                inputmode="numeric"
+                required
+              />
+            </div>
+
+            <div class="record-edit-field">
+              <label for="recordEditMinutes">
+                분
+              </label>
+
+              <input
+                id="recordEditMinutes"
+                type="number"
+                min="0"
+                max="59"
+                step="1"
+                inputmode="numeric"
+                required
+              />
+            </div>
+
+            <div class="record-edit-field">
+              <label for="recordEditSeconds">
+                초
+              </label>
+
+              <input
+                id="recordEditSeconds"
+                type="number"
+                min="0"
+                max="59"
+                step="1"
+                inputmode="numeric"
+                required
+              />
+            </div>
+          </div>
+
+          <p class="record-edit-help">
+            기존 공부시간보다 줄이는 것만 가능합니다.
+            최소 1초 이상 입력해 주세요.
+          </p>
+
+          <p
+            id="recordEditMessage"
+            class="record-edit-message"
+            hidden
+          ></p>
+
+          <div class="record-edit-actions">
+            <button
+              class="btn btn-outline"
+              type="button"
+              data-record-edit-close
+            >
+              취소
+            </button>
+
+            <button
+              id="recordEditSubmit"
+              class="btn btn-primary"
+              type="submit"
+            >
+              수정 완료
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal
+      .querySelectorAll(
+        "[data-record-edit-close]",
+      )
+      .forEach((element) => {
+        element.addEventListener(
+          "click",
+          closeRecordEditModal,
+        );
+      });
+
+    modal
+      .querySelector(
+        "#recordEditForm",
+      )
+      .addEventListener(
+        "submit",
+        submitRecordEdit,
+      );
+
+    return modal;
+  }
+
+  function getRecordEditElement(
+    selector,
+  ) {
+    return recordEditModal?.querySelector(
+      selector,
     );
   }
 
-  function updateGradeClass(element, grade) {
+  function setRecordEditMessage(
+    message,
+  ) {
+    const element =
+      getRecordEditElement(
+        "#recordEditMessage",
+      );
+
     if (!element) {
       return;
     }
 
-    element.classList.remove(
-      "grade-1",
-      "grade-2",
-      "grade-3",
-      "grade-4",
-      "grade-5",
+    element.textContent =
+      message || "";
+
+    element.hidden = !message;
+  }
+
+  function openRecordEditModal(record) {
+    if (!recordEditModal) {
+      recordEditModal =
+        createRecordEditModal();
+    }
+
+    editingRecord = record;
+
+    const totalSeconds = Math.max(
+      0,
+      Math.floor(
+        Number(
+          record.duration_seconds,
+        ) || 0,
+      ),
     );
 
-    element.classList.add(`grade-${grade}`);
+    const hours = Math.floor(
+      totalSeconds / 3600,
+    );
+
+    const minutes = Math.floor(
+      (totalSeconds % 3600) / 60,
+    );
+
+    const seconds =
+      totalSeconds % 60;
+
+    const title =
+      getRecordEditElement(
+        "#recordEditTitle",
+      );
+
+    const currentTime =
+      getRecordEditElement(
+        "#recordEditCurrentTime",
+      );
+
+    const hoursInput =
+      getRecordEditElement(
+        "#recordEditHours",
+      );
+
+    const minutesInput =
+      getRecordEditElement(
+        "#recordEditMinutes",
+      );
+
+    const secondsInput =
+      getRecordEditElement(
+        "#recordEditSeconds",
+      );
+
+    title.textContent =
+      `${record.subject} 공부시간 수정`;
+
+    currentTime.textContent =
+      formatFlexibleDuration(
+        totalSeconds,
+      );
+
+    hoursInput.value =
+      String(hours);
+
+    minutesInput.value =
+      String(minutes);
+
+    secondsInput.value =
+      String(seconds);
+
+    setRecordEditMessage("");
+
+    recordEditModal.hidden = false;
+    document.body.style.overflow =
+      "hidden";
+
+    window.setTimeout(() => {
+      hoursInput.focus();
+      hoursInput.select();
+    }, 0);
   }
 
-  // =========================================================
-  // 전체 화면 표시 갱신
-  // =========================================================
-  function updateTimerDisplay() {
-    const totalSeconds = baseTodaySeconds + sessionSeconds;
-
-    const percentage =
-      goalSeconds > 0
-        ? Math.min(100, Math.round((totalSeconds / goalSeconds) * 100))
-        : 0;
-
-    const gradeInfo = calculateGrade(totalSeconds);
-
-    const gradeMessage = getGradeMessage(gradeInfo);
-
-    // 대시보드 시간
-    if (todayStudyTime) {
-      todayStudyTime.textContent = formatTime(totalSeconds);
-    }
-
-    // 목표 달성률
-    if (goalPercentage) {
-      goalPercentage.textContent = `${percentage}%`;
-    }
-
-    if (goalProgressFill) {
-      goalProgressFill.style.width = `${percentage}%`;
-    }
-
-    // 등급 카드
-    if (todayGrade) {
-      todayGrade.textContent = gradeInfo.grade;
-    }
-
-    gradeLevelElements.forEach((element) => {
-      const grade = Number(element.dataset.gradeLevel);
-
-      element.classList.toggle("active", grade === gradeInfo.grade);
-    });
-    if (todayGradeNumber) {
-      todayGradeNumber.textContent = gradeInfo.grade;
-    }
-
-    gradeLevelElements.forEach((element) => {
-      const elementGrade = Number(element.dataset.gradeLevel);
-
-      element.classList.toggle("active", elementGrade === gradeInfo.grade);
-    });
-
-    if (todayGradeBadge) {
-      updateGradeClass(todayGradeBadge, gradeInfo.grade);
-    }
-
-    if (todayGradePoint) {
-      todayGradePoint.textContent = `${gradeInfo.point}점`;
-    }
-
-    if (nextGradeText) {
-      nextGradeText.textContent = gradeMessage;
-    }
-
-    // 집중 모드
-    if (focusTimer) {
-      focusTimer.textContent = formatTime(sessionSeconds);
-    }
-
-    if (focusTodayTime) {
-      focusTodayTime.textContent = formatTime(totalSeconds);
-    }
-
-    if (focusGrade) {
-      focusGrade.textContent = `${gradeInfo.grade}등급`;
-
-      updateGradeClass(focusGrade, gradeInfo.grade);
-    }
-
-    if (focusGoalPercentage) {
-      focusGoalPercentage.textContent = `${percentage}%`;
-    }
-
-    if (focusNextGradeText) {
-      focusNextGradeText.textContent = gradeMessage;
-    }
-
-    if (timerState === "running") {
-      document.title = `${formatTime(sessionSeconds)} · ${selectedSubject}`;
-    } else {
-      document.title = "혜윰X세콜 <돼지런한 여름방학>";
-    }
-  }
-
-  // =========================================================
-  // 타이머 상태 표시
-  // =========================================================
-  function updateTimerState(nextState, message = "") {
-    timerState = nextState;
-
-    if (timerStatusBadge) {
-      timerStatusBadge.className = "badge";
-    }
-
-    if (nextState === "running") {
-      if (timerStatusBadge) {
-        timerStatusBadge.textContent = "공부 중";
-        timerStatusBadge.classList.add("badge-success");
-      }
-
-      if (focusStatusBadge) {
-        focusStatusBadge.textContent = "집중 중";
-        focusStatusBadge.classList.remove("paused");
-      }
-
-      if (startStudyButton) {
-        if (startStudyButton) {
-          const hasSelectedSubject = Boolean(timerSubject?.value);
-
-          startStudyButton.disabled = !hasSelectedSubject;
-
-          startStudyButton.textContent = hasSelectedSubject
-            ? `${timerSubject.value} 공부 시작`
-            : "과목을 선택해 주세요";
-        }
-      }
-
-      if (stopStudyButton) {
-        stopStudyButton.disabled = false;
-        stopStudyButton.textContent = "공부 종료";
-      }
-
-      if (resumeFocusButton) {
-        resumeFocusButton.hidden = true;
-      }
-
-      if (focusInterruptionMessage) {
-        focusInterruptionMessage.hidden = true;
-      }
-
-      hideMessage(timerMessage);
-
+  function closeRecordEditModal() {
+    if (!recordEditModal) {
       return;
     }
 
-    if (nextState === "paused") {
-      if (timerStatusBadge) {
-        timerStatusBadge.textContent = "일시정지";
-        timerStatusBadge.classList.add("badge-warning");
-      }
+    recordEditModal.hidden = true;
+    editingRecord = null;
+    setRecordEditMessage("");
 
-      if (focusStatusBadge) {
-        focusStatusBadge.textContent = "일시정지";
+    if (
+      !subjectEditorModal ||
+      subjectEditorModal.hidden
+    ) {
+      document.body.style.overflow =
+        "";
+    }
+  }
 
-        focusStatusBadge.classList.add("paused");
-      }
+  function getEditedDurationSeconds() {
+    const hours = Math.max(
+      0,
+      Math.floor(
+        Number(
+          getRecordEditElement(
+            "#recordEditHours",
+          )?.value,
+        ) || 0,
+      ),
+    );
 
-      if (startStudyButton) {
-        startStudyButton.disabled = false;
-        startStudyButton.textContent = "공부 계속하기";
-      }
+    const minutes = Math.max(
+      0,
+      Math.floor(
+        Number(
+          getRecordEditElement(
+            "#recordEditMinutes",
+          )?.value,
+        ) || 0,
+      ),
+    );
 
-      if (stopStudyButton) {
-        stopStudyButton.disabled = false;
-      }
+    const seconds = Math.max(
+      0,
+      Math.floor(
+        Number(
+          getRecordEditElement(
+            "#recordEditSeconds",
+          )?.value,
+        ) || 0,
+      ),
+    );
 
-      if (resumeFocusButton) {
-        resumeFocusButton.hidden = false;
-        resumeFocusButton.disabled = false;
-      }
+    if (
+      minutes > 59 ||
+      seconds > 59
+    ) {
+      return null;
+    }
 
-      if (focusInterruptionMessage) {
-        focusInterruptionMessage.textContent =
-          message || "화면을 벗어나 타이머가 일시정지되었습니다.";
+    return (
+      hours * 3600 +
+      minutes * 60 +
+      seconds
+    );
+  }
 
-        focusInterruptionMessage.hidden = false;
-      }
+  async function submitRecordEdit(
+    event,
+  ) {
+    event.preventDefault();
 
-      showMessage(
-        timerMessage,
-        message || "화면을 벗어나 타이머가 일시정지되었습니다.",
-        "error",
+    if (!editingRecord) {
+      return;
+    }
+
+    const newDuration =
+      getEditedDurationSeconds();
+
+    const previousDuration =
+      Math.max(
+        0,
+        Number(
+          editingRecord.duration_seconds,
+        ) || 0,
+      );
+
+    if (newDuration === null) {
+      setRecordEditMessage(
+        "분과 초는 0부터 59까지 입력해 주세요.",
       );
 
       return;
     }
 
-    if (nextState === "saving") {
-      if (stopStudyButton) {
-        stopStudyButton.disabled = true;
-        stopStudyButton.textContent = "저장 중...";
-      }
-
-      if (focusStopButton) {
-        focusStopButton.disabled = true;
-        focusStopButton.textContent = "저장 중...";
-      }
-
-      if (resumeFocusButton) {
-        resumeFocusButton.disabled = true;
-      }
+    if (newDuration < 1) {
+      setRecordEditMessage(
+        "공부시간은 최소 1초 이상이어야 합니다.",
+      );
 
       return;
     }
 
-    // idle
-    if (timerStatusBadge) {
-      timerStatusBadge.textContent = "대기 중";
-      timerStatusBadge.classList.add("badge-idle");
+    if (
+      newDuration >= previousDuration
+    ) {
+      setRecordEditMessage(
+        "기존 공부시간보다 줄이는 것만 가능합니다.",
+      );
+
+      return;
     }
 
-    if (startStudyButton) {
-      const subject = timerSubject?.value.trim() || "";
+    const submitButton =
+      getRecordEditElement(
+        "#recordEditSubmit",
+      );
 
-      startStudyButton.disabled = !subject;
+    submitButton.disabled = true;
+    submitButton.textContent =
+      "수정 중...";
 
-      startStudyButton.textContent = subject
-        ? `${subject} 공부 시작`
-        : "과목을 선택해 주세요";
+    setRecordEditMessage("");
+
+    try {
+      const url =
+        updateRecordUrlTemplate.replace(
+          "__RECORD_ID__",
+          encodeURIComponent(
+            editingRecord.id,
+          ),
+        );
+
+      const result =
+        await requestJSON(url, {
+          method: "PATCH",
+          body: {
+            duration_seconds:
+              newDuration,
+          },
+        });
+
+      updateDailySummary(
+        result.today_seconds ??
+          result.daily_stats
+            ?.total_seconds ??
+          currentTodaySeconds,
+      );
+
+      updateTotalSummary(
+        result.total_seconds ??
+          currentTotalSeconds,
+      );
+
+      closeRecordEditModal();
+
+      await loadStudySummary();
+
+      showMessage(
+        dashboardMessage,
+        "공부시간을 수정했습니다.",
+        "success",
+      );
+    } catch (error) {
+      console.error(
+        "공부 기록 수정 오류:",
+        error,
+      );
+
+      setRecordEditMessage(
+        error.message,
+      );
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent =
+        "수정 완료";
     }
-
-    if (stopStudyButton) {
-      stopStudyButton.disabled = true;
-      stopStudyButton.textContent = "공부 종료";
-    }
-
-    if (focusStopButton) {
-      focusStopButton.disabled = false;
-      focusStopButton.textContent = "공부 종료";
-    }
-
-    if (resumeFocusButton) {
-      resumeFocusButton.hidden = true;
-      resumeFocusButton.disabled = false;
-    }
-
-    hideMessage(timerMessage);
   }
 
   // =========================================================
-  // 집중 모드 진입
+  // 과목 선택
   // =========================================================
-  function enterFocusMode(subject) {
-    selectedSubject = subject;
 
-    if (focusSubject) {
-      focusSubject.textContent = subject;
+  function selectSubject(subject) {
+    if (getActiveSession()) {
+      showMessage(
+        dashboardMessage,
+        "집중 모드가 진행 중일 때는 과목을 변경할 수 없습니다. 기존 공부 기록 수정과 프로필·랭킹 이용은 가능합니다.",
+      );
+      return;
     }
 
-    if (dashboardView) {
-      dashboardView.hidden = true;
+    selectedSubject =
+      normalizeSubjectName(subject);
+
+    if (timerSubject) {
+      timerSubject.value =
+        selectedSubject;
     }
 
-    if (mainTopbar) {
-      mainTopbar.hidden = true;
+    renderSubjectList();
+    updateStartButton();
+    hideMessage(dashboardMessage);
+  }
+
+  function updateStartButton() {
+    if (!startStudyButton) {
+      return;
     }
 
-    if (focusMode) {
-      focusMode.hidden = false;
+    const activeSession =
+      getActiveSession();
+
+    if (activeSession) {
+      startStudyButton.disabled = false;
+
+      startStudyButton.textContent =
+        `${activeSession.subject} 집중 모드로 돌아가기`;
+
+      return;
     }
 
-    document.body.classList.add("focus-active");
+    if (!selectedSubject) {
+      startStudyButton.disabled = true;
 
-    window.scrollTo({
-      top: 0,
-      behavior: "instant",
+      startStudyButton.textContent =
+        "과목을 선택해 주세요";
+
+      return;
+    }
+
+    startStudyButton.disabled = false;
+
+    startStudyButton.textContent =
+      `${selectedSubject} 공부 시작`;
+  }
+
+  function renderSubjectList() {
+    if (!subjectList) {
+      return;
+    }
+
+    subjectList.innerHTML = "";
+
+    subjects.forEach((subject) => {
+      const button =
+        document.createElement(
+          "button",
+        );
+
+      button.type = "button";
+      button.className =
+        "subject-choice-button";
+      button.disabled = Boolean(getActiveSession());
+
+      button.textContent = subject;
+
+      if (
+        subject === selectedSubject
+      ) {
+        button.classList.add(
+          "active",
+        );
+      }
+
+      button.setAttribute(
+        "aria-pressed",
+        String(
+          subject === selectedSubject,
+        ),
+      );
+
+      button.addEventListener(
+        "click",
+        () => {
+          selectSubject(subject);
+        },
+      );
+
+      subjectList.appendChild(button);
     });
   }
 
   // =========================================================
-  // 집중 모드 종료
+  // 집중 모드 이동
   // =========================================================
-  function exitFocusMode() {
-    if (dashboardView) {
-      dashboardView.hidden = false;
-    }
 
-    if (mainTopbar) {
-      mainTopbar.hidden = false;
-    }
+  function moveToFocus(subject) {
+    const normalizedSubject =
+      normalizeSubjectName(subject);
 
-    if (focusMode) {
-      focusMode.hidden = true;
-    }
-
-    document.body.classList.remove("focus-active");
-  }
-
-  // =========================================================
-  // 실제 경과 시간 계산
-  // =========================================================
-  function updateElapsedTime() {
-    if (timerState !== "running" || previousTickTime === null) {
+    if (!normalizedSubject) {
       return;
     }
 
-    const currentTime = Date.now();
+    const destination =
+      `${focusUrl}?subject=${encodeURIComponent(
+        normalizedSubject,
+      )}`;
 
-    const elapsedMilliseconds = currentTime - previousTickTime;
+    window.location.href =
+      destination;
+  }
 
-    if (elapsedMilliseconds < 1000) {
+  function startStudy() {
+    hideMessage(dashboardMessage);
+
+    const activeSession =
+      getActiveSession();
+
+    if (activeSession) {
+      moveToFocus(
+        activeSession.subject,
+      );
+
       return;
     }
 
-    const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
+    if (!selectedSubject) {
+      showMessage(
+        dashboardMessage,
+        "공부할 과목을 먼저 선택해 주세요.",
+      );
 
-    sessionSeconds += elapsedSeconds;
+      return;
+    }
 
-    previousTickTime += elapsedSeconds * 1000;
-
-    updateTimerDisplay();
+    moveToFocus(selectedSubject);
   }
 
   // =========================================================
-  // 타이머 반복 실행
+  // 과목 관리 모달
   // =========================================================
-  function startTicking() {
-    previousTickTime = Date.now();
 
-    if (timerInterval !== null) {
-      clearInterval(timerInterval);
+  function openSubjectEditor() {
+    if (getActiveSession()) {
+      showMessage(
+        dashboardMessage,
+        "집중 모드가 진행 중일 때는 과목 목록을 수정할 수 없습니다.",
+      );
+      return;
     }
 
-    timerInterval = window.setInterval(updateElapsedTime, 250);
+    if (!subjectEditorModal) {
+      return;
+    }
 
-    updateTimerState("running");
-    updateTimerDisplay();
+    editingSubjects = [...subjects];
+
+    hideMessage(
+      subjectEditorMessage,
+    );
+
+    renderSubjectEditorList();
+
+    subjectEditorModal.hidden =
+      false;
+
+    document.body.style.overflow =
+      "hidden";
+
+    window.setTimeout(() => {
+      newSubjectInput?.focus();
+    }, 0);
   }
 
-  function stopTicking() {
-    if (timerState === "running") {
-      updateElapsedTime();
+  function closeSubjectEditor() {
+    if (!subjectEditorModal) {
+      return;
     }
 
-    if (timerInterval !== null) {
-      clearInterval(timerInterval);
+    subjectEditorModal.hidden = true;
+    editingSubjects = [...subjects];
+
+    hideMessage(
+      subjectEditorMessage,
+    );
+
+    if (newSubjectInput) {
+      newSubjectInput.value = "";
     }
 
-    timerInterval = null;
-    previousTickTime = null;
-  }
-  function selectSubject(button) {
     if (
-      timerState === "running" ||
-      timerState === "paused" ||
-      timerState === "saving"
+      !recordEditModal ||
+      recordEditModal.hidden
+    ) {
+      document.body.style.overflow =
+        "";
+    }
+  }
+
+  async function finishSubjectEditor() {
+    if (editingSubjects.length === 0) {
+      showMessage(
+        subjectEditorMessage,
+        "과목은 최소 1개 이상 있어야 합니다.",
+      );
+
+      return;
+    }
+
+    const previousSubjects = [...subjects];
+
+    if (finishSubjectEditorButton) {
+      finishSubjectEditorButton.disabled = true;
+      finishSubjectEditorButton.textContent =
+        "저장 중...";
+    }
+
+    hideMessage(subjectEditorMessage);
+
+    try {
+      subjects = await requestSaveSubjects(
+        editingSubjects,
+      );
+
+      editingSubjects = [...subjects];
+      removeLegacySubjects();
+
+      if (
+        selectedSubject &&
+        !subjects.includes(selectedSubject)
+      ) {
+        selectedSubject = "";
+
+        if (timerSubject) {
+          timerSubject.value = "";
+        }
+      }
+
+      renderSubjectList();
+      updateStartButton();
+      closeSubjectEditor();
+
+      showMessage(
+        dashboardMessage,
+        "과목 목록이 저장되었습니다.",
+        "success",
+      );
+    } catch (error) {
+      subjects = previousSubjects;
+
+      console.error(
+        "과목 목록 저장 오류:",
+        error,
+      );
+
+      showMessage(
+        subjectEditorMessage,
+        error.message ||
+          "과목 목록을 저장하지 못했습니다.",
+      );
+    } finally {
+      if (finishSubjectEditorButton) {
+        finishSubjectEditorButton.disabled = false;
+        finishSubjectEditorButton.textContent =
+          "완료";
+      }
+    }
+  }
+
+  function addSubject(event) {
+    event.preventDefault();
+
+    hideMessage(
+      subjectEditorMessage,
+    );
+
+    const subjectName =
+      normalizeSubjectName(
+        newSubjectInput?.value,
+      );
+
+    if (!subjectName) {
+      showMessage(
+        subjectEditorMessage,
+        "추가할 과목 이름을 입력해 주세요.",
+      );
+
+      newSubjectInput?.focus();
+      return;
+    }
+
+    if (subjectName.length > 20) {
+      showMessage(
+        subjectEditorMessage,
+        "과목 이름은 20자 이하로 입력해 주세요.",
+      );
+
+      return;
+    }
+
+    const duplicated =
+      editingSubjects.some(
+        (subject) =>
+          subject.toLowerCase() ===
+          subjectName.toLowerCase(),
+      );
+
+    if (duplicated) {
+      showMessage(
+        subjectEditorMessage,
+        "이미 등록된 과목입니다.",
+      );
+
+      return;
+    }
+
+    if (
+      editingSubjects.length >= 20
+    ) {
+      showMessage(
+        subjectEditorMessage,
+        "과목은 최대 20개까지 등록할 수 있습니다.",
+      );
+
+      return;
+    }
+
+    editingSubjects.push(
+      subjectName,
+    );
+
+    if (newSubjectInput) {
+      newSubjectInput.value = "";
+      newSubjectInput.focus();
+    }
+
+    renderSubjectEditorList();
+  }
+
+  function deleteEditingSubject(
+    index,
+  ) {
+    if (
+      index < 0 ||
+      index >=
+        editingSubjects.length
     ) {
       return;
     }
 
-    const subject = button.dataset.subject || "";
-
-    if (!subject) {
-      return;
-    }
-
-    subjectButtons.forEach((item) => {
-      item.classList.remove("active");
-      item.setAttribute("aria-pressed", "false");
-    });
-
-    button.classList.add("active");
-    button.setAttribute("aria-pressed", "true");
-
-    if (timerSubject) {
-      timerSubject.value = subject;
-    }
-
-    if (selectedSubjectText) {
-      selectedSubjectText.textContent = subject;
-    }
-
-    if (subjectSelectorStatus) {
-      subjectSelectorStatus.textContent = "선택 완료";
-      subjectSelectorStatus.classList.add("selected");
-    }
-
-    if (startStudyButton) {
-      startStudyButton.disabled = false;
-      startStudyButton.textContent = `${subject} 공부 시작`;
-    }
-
-    hideMessage(timerMessage);
-  }
-
-  // =========================================================
-  // 공부 시작
-  // =========================================================
-  function startTimer() {
-    if (timerState === "running" || timerState === "saving") {
-      return;
-    }
-
-    const subject = selectedSubject || timerSubject?.value.trim() || "";
-
-    if (!subject) {
-      showMessage(timerMessage, "공부할 과목을 선택해 주세요.");
-
-      timerSubject?.focus();
-
-      return;
-    }
-
-    if (timerState === "idle") {
-      sessionSeconds = 0;
-      startedAt = new Date().toISOString();
-      selectedSubject = subject;
-
-      enterFocusMode(subject);
-    }
-
-    startTicking();
-  }
-
-  // =========================================================
-  // 타이머 일시정지
-  // =========================================================
-  function pauseTimer(message) {
-    if (timerState !== "running") {
-      return;
-    }
-
-    stopTicking();
-
-    updateTimerState(
-      "paused",
-      message || "화면을 벗어나 타이머가 일시정지되었습니다.",
+    editingSubjects.splice(
+      index,
+      1,
     );
-
-    updateTimerDisplay();
-  }
-
-  // =========================================================
-  // 집중 다시 시작
-  // =========================================================
-  function resumeTimer() {
-    if (timerState !== "paused") {
-      return;
-    }
-
-    startTicking();
-  }
-
-  // =========================================================
-  // 타이머 초기화
-  // =========================================================
-  function resetTimer() {
-    stopTicking();
-
-    sessionSeconds = 0;
-    startedAt = null;
-    selectedSubject = "";
-
-    selectedSubject = "";
-
-    if (timerSubject) {
-      timerSubject.value = "";
-    }
-
-    if (selectedSubjectText) {
-      selectedSubjectText.textContent = "과목을 선택해 주세요";
-    }
-
-    renderSubjectButtons();
-    subjectButtons.forEach((button) => {
-      button.classList.remove("active");
-      button.setAttribute("aria-pressed", "false");
-    });
-
-    if (selectedSubjectText) {
-      selectedSubjectText.textContent = "과목을 선택해 주세요";
-    }
-
-    if (subjectSelectorStatus) {
-      subjectSelectorStatus.textContent = "미선택";
-      subjectSelectorStatus.classList.remove("selected");
-    }
-    exitFocusMode();
-
-    updateTimerState("idle");
-    updateTimerDisplay();
-  }
-
-  // =========================================================
-  // 공부 기록 저장
-  // =========================================================
-  async function saveTimerRecord() {
-    if (timerState !== "running" && timerState !== "paused") {
-      return;
-    }
-
-    const wasRunning = timerState === "running";
-
-    if (wasRunning) {
-      stopTicking();
-    }
-
-    updateTimerState("paused", "공부가 일시정지되었습니다.");
-
-    if (sessionSeconds < 10) {
-      window.alert("10초 이상 공부한 뒤 종료해 주세요.");
-
-      if (wasRunning) {
-        startTicking();
-      }
-
-      return;
-    }
-
-    const subject = selectedSubject || timerSubject?.value.trim() || "";
-
-    if (!subject) {
-      window.alert("공부한 과목을 선택해 주세요.");
-
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `${subject} 공부 기록 ${formatTime(sessionSeconds)}을 저장할까요?`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    updateTimerState("saving");
-
-    try {
-      await requestJson("/api/study-records", {
-        method: "POST",
-
-        body: JSON.stringify({
-          subject,
-          duration_seconds: sessionSeconds,
-          started_at: startedAt,
-          ended_at: new Date().toISOString(),
-        }),
-      });
-
-      resetTimer();
-
-      window.location.reload();
-    } catch (error) {
-      console.error("공부 기록 저장 오류:", error);
-
-      window.alert(error.message || "공부 기록 저장 중 오류가 발생했습니다.");
-
-      updateTimerState("paused", "저장에 실패했습니다. 다시 시도해 주세요.");
-    }
-  }
-
-  // =========================================================
-  // 공부 기록 삭제
-  // =========================================================
-  async function deleteStudyRecord(button) {
-    const recordId = button.dataset.recordId || button.dataset.deleteRecord;
-
-    if (!recordId) {
-      console.error("삭제할 기록 ID가 없습니다.");
-
-      return;
-    }
-
-    const confirmed = window.confirm("이 공부 기록을 삭제할까요?");
-
-    if (!confirmed) {
-      return;
-    }
-
-    const originalText = button.textContent;
-
-    button.disabled = true;
-    button.textContent = "삭제 중";
-
-    try {
-      await requestJson(`/api/study-records/${recordId}`, {
-        method: "DELETE",
-      });
-
-      const recordItem = button.closest(".record-item");
-
-      if (recordItem) {
-        recordItem.remove();
-      }
-
-      window.location.reload();
-    } catch (error) {
-      console.error("공부 기록 삭제 오류:", error);
-
-      window.alert(error.message || "공부 기록 삭제 중 오류가 발생했습니다.");
-
-      button.disabled = false;
-      button.textContent = originalText;
-    }
-  }
-
-  // =========================================================
-  // 이벤트 등록
-  // =========================================================
-
-  openSubjectEditorButton?.addEventListener("click", openSubjectEditor);
-
-  closeSubjectEditorButton?.addEventListener("click", closeSubjectEditor);
-
-  document
-    .querySelectorAll("[data-close-subject-editor]")
-    .forEach((element) => {
-      element.addEventListener("click", closeSubjectEditor);
-    });
-
-  addSubjectForm?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    addNewSubject();
-  });
-
-  saveSubjectsButton?.addEventListener("click", applySubjectChanges);
-
-  resetSubjectsButton?.addEventListener("click", () => {
-    const confirmed = window.confirm("과목 목록을 기본값으로 초기화할까요?");
-
-    if (!confirmed) {
-      return;
-    }
-
-    editingSubjects = [...DEFAULT_SUBJECTS];
 
     renderSubjectEditorList();
-  });
+  }
 
-  window.addEventListener("keydown", (event) => {
+  function moveEditingSubject(
+    currentIndex,
+    direction,
+  ) {
+    const destinationIndex =
+      currentIndex + direction;
+
     if (
-      event.key === "Escape" &&
+      currentIndex < 0 ||
+      currentIndex >=
+        editingSubjects.length ||
+      destinationIndex < 0 ||
+      destinationIndex >=
+        editingSubjects.length
+    ) {
+      return;
+    }
+
+    const [movedSubject] =
+      editingSubjects.splice(
+        currentIndex,
+        1,
+      );
+
+    editingSubjects.splice(
+      destinationIndex,
+      0,
+      movedSubject,
+    );
+
+    renderSubjectEditorList();
+  }
+
+  function createEditorControlButton({
+    text,
+    title,
+    className,
+    disabled = false,
+    onClick,
+  }) {
+    const button =
+      document.createElement(
+        "button",
+      );
+
+    button.type = "button";
+    button.textContent = text;
+    button.title = title;
+    button.className = className;
+    button.disabled = disabled;
+
+    button.addEventListener(
+      "click",
+      onClick,
+    );
+
+    return button;
+  }
+
+  function renderSubjectEditorList() {
+    if (!subjectEditorList) {
+      return;
+    }
+
+    subjectEditorList.innerHTML = "";
+
+    if (
+      editingSubjects.length === 0
+    ) {
+      const emptyMessage =
+        document.createElement("p");
+
+      emptyMessage.className =
+        "empty-message";
+
+      emptyMessage.textContent =
+        "등록된 과목이 없습니다.";
+
+      subjectEditorList.appendChild(
+        emptyMessage,
+      );
+
+      return;
+    }
+
+    editingSubjects.forEach(
+      (subject, index) => {
+        const item =
+          document.createElement(
+            "div",
+          );
+
+        item.className =
+          "subject-editor-item";
+
+        const subjectInfo =
+          document.createElement(
+            "div",
+          );
+
+        subjectInfo.className =
+          "subject-editor-info";
+
+        const name =
+          document.createElement(
+            "span",
+          );
+
+        name.className =
+          "subject-editor-name";
+
+        name.textContent = subject;
+
+        subjectInfo.append(name);
+
+        const controls =
+          document.createElement(
+            "div",
+          );
+
+        controls.className =
+          "subject-editor-controls";
+
+        const upButton =
+          createEditorControlButton({
+            text: "↑",
+            title: "위로 이동",
+            className:
+              "subject-order-button",
+            disabled: index === 0,
+            onClick: () => {
+              moveEditingSubject(
+                index,
+                -1,
+              );
+            },
+          });
+
+        const downButton =
+          createEditorControlButton({
+            text: "↓",
+            title: "아래로 이동",
+            className:
+              "subject-order-button",
+            disabled:
+              index ===
+              editingSubjects.length - 1,
+            onClick: () => {
+              moveEditingSubject(
+                index,
+                1,
+              );
+            },
+          });
+
+        const deleteButton =
+          createEditorControlButton({
+            text: "삭제",
+            title: "과목 삭제",
+            className:
+              "subject-delete-button",
+            onClick: () => {
+              deleteEditingSubject(
+                index,
+              );
+            },
+          });
+
+        controls.append(
+          upButton,
+          downButton,
+          deleteButton,
+        );
+
+        item.append(
+          subjectInfo,
+          controls,
+        );
+
+        subjectEditorList.appendChild(
+          item,
+        );
+      },
+    );
+  }
+
+  // =========================================================
+  // 로그아웃
+  // =========================================================
+
+  function logout() {
+    window.location.href =
+      logoutUrl;
+  }
+
+  // =========================================================
+  // 키보드 처리
+  // =========================================================
+
+  function handleKeyDown(event) {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    if (
+      recordEditModal &&
+      !recordEditModal.hidden
+    ) {
+      closeRecordEditModal();
+      return;
+    }
+
+    if (
       subjectEditorModal &&
       !subjectEditorModal.hidden
     ) {
       closeSubjectEditor();
     }
-  });
-  subjectButtons.forEach((button) => {
-    button.setAttribute("aria-pressed", "false");
-
-    button.addEventListener("click", () => {
-      selectSubject(button);
-    });
-  });
-  // 대시보드 공부 시작
-  startStudyButton?.addEventListener("click", startTimer);
-
-  // 대시보드 공부 종료
-  stopStudyButton?.addEventListener("click", saveTimerRecord);
-
-  // 집중 화면 공부 종료
-  focusStopButton?.addEventListener("click", saveTimerRecord);
-
-  // 집중 다시 시작
-  resumeFocusButton?.addEventListener("click", resumeTimer);
-
-  // 공부 기록 삭제
-  document
-    .querySelectorAll(".record-delete-button, [data-delete-record]")
-    .forEach((button) => {
-      button.addEventListener("click", () => deleteStudyRecord(button));
-    });
-
-  // =========================================================
-  // 다른 탭으로 이동하면 일시정지
-  // =========================================================
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden && timerState === "running") {
-      pauseTimer(
-        "다른 탭으로 이동하여 집중시간이 일시정지되었습니다. 다시 시작 버튼을 눌러 주세요.",
-      );
-    }
-  });
-
-  // =========================================================
-  // 브라우저 밖으로 이동하면 일시정지
-  // =========================================================
-  window.addEventListener("blur", () => {
-    if (timerState === "running") {
-      pauseTimer(
-        "브라우저 화면을 벗어나 집중시간이 일시정지되었습니다. 다시 시작 버튼을 눌러 주세요.",
-      );
-    }
-  });
-
-  // =========================================================
-  // 공부 중 페이지 종료 경고
-  // =========================================================
-  window.addEventListener("beforeunload", (event) => {
-    if (
-      timerState === "running" ||
-      timerState === "paused" ||
-      timerState === "saving"
-    ) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
-  });
-
-  // =========================================================
-  // 초기 화면 설정
-  // =========================================================
-  if (focusMode) {
-    focusMode.hidden = true;
   }
-  renderSubjectButtons();
-  updateTimerDisplay();
-  updateTimerState("idle");
+
+  // =========================================================
+  // 이벤트 연결
+  // =========================================================
+
+  function bindEvents() {
+    startStudyButton
+      ?.addEventListener(
+        "click",
+        startStudy,
+      );
+
+    openSubjectEditorButton
+      ?.addEventListener(
+        "click",
+        openSubjectEditor,
+      );
+
+    closeSubjectEditorButton
+      ?.addEventListener(
+        "click",
+        closeSubjectEditor,
+      );
+
+    subjectEditorBackdrop
+      ?.addEventListener(
+        "click",
+        closeSubjectEditor,
+      );
+
+    finishSubjectEditorButton
+      ?.addEventListener(
+        "click",
+        finishSubjectEditor,
+      );
+
+    subjectAddForm
+      ?.addEventListener(
+        "submit",
+        addSubject,
+      );
+
+    logoutButton
+      ?.addEventListener(
+        "click",
+        logout,
+      );
+
+    mobileLogoutButton
+      ?.addEventListener(
+        "click",
+        logout,
+      );
+
+    document.addEventListener(
+      "keydown",
+      handleKeyDown,
+    );
+  }
+
+  // =========================================================
+  // 초기화
+  // =========================================================
+
+  async function initialize() {
+    renderDashboardSummary();
+    bindEvents();
+
+    try {
+      const activeSession =
+        await loadActiveFocusSession();
+
+      if (activeSession?.subject) {
+        // 집중 세션이 진행 중이어도 대시보드에 머물 수 있다.
+        // 새 세션과 과목 수정은 잠그고, 기존 기록 수정·프로필·랭킹은 허용한다.
+        if (openSubjectEditorButton) {
+          openSubjectEditorButton.disabled = true;
+          openSubjectEditorButton.title =
+            "집중 모드 진행 중에는 과목을 수정할 수 없습니다.";
+        }
+
+        showMessage(
+          dashboardMessage,
+          `${activeSession.subject} 집중 모드가 백그라운드에서 계속 측정 중입니다. 새 공부 시작과 과목 수정은 제한됩니다.`,
+          "success",
+        );
+      }
+    } catch (error) {
+      console.error(
+        "집중 세션 동기화 오류:",
+        error,
+      );
+    }
+
+    if (subjectList) {
+      subjectList.innerHTML = `
+        <p class="empty-message">
+          과목 목록을 불러오는 중입니다.
+        </p>
+      `;
+    }
+
+    await Promise.allSettled([
+      loadStudySummary(),
+      loadSubjects().catch((error) => {
+        console.error(
+          "과목 목록 초기화 오류:",
+          error,
+        );
+
+        subjects = loadLegacySubjects();
+        editingSubjects = [...subjects];
+        renderSubjectList();
+        updateStartButton();
+
+        showMessage(
+          dashboardMessage,
+          error.message ||
+            "과목 목록을 불러오지 못했습니다.",
+        );
+      }),
+    ]);
+  }
+
+  initialize();
 });
