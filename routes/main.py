@@ -1,5 +1,7 @@
 from flask import redirect, render_template, url_for
 
+from extensions import supabase
+
 from services.ranking_service import (
     find_class_rank,
     find_user_rank,
@@ -27,13 +29,69 @@ def register_main_routes(app):
             total_seconds = get_study_total(user["id"])
             recent_records = get_recent_records(user["id"], limit=10)
 
-            personal_rankings = get_personal_rankings(limit=20)
+            personal_rankings = get_personal_rankings(limit=500)
             today_rankings = get_today_rankings(limit=20)
-            class_rankings = get_class_rankings(limit=20)
+            class_rankings = get_class_rankings(limit=100)
 
             personal_rank = find_user_rank(personal_rankings, user["id"])
             today_rank = find_user_rank(today_rankings, user["id"])
             class_rank = find_class_rank(class_rankings, user["student_id"])
+
+            # 최종 등급은 2026-08-13까지의 일별 공부 등급만 평균낸다.
+            # 8월 14일 이후 기록은 총 공부시간에는 남아 있어도
+            # 최종 평균 등급 계산에는 포함하지 않는다.
+            grade_rows = (
+                supabase
+                .table("daily_study_stats")
+                .select("user_id,study_grade,study_date")
+                .lte("study_date", "2026-08-13")
+                .execute()
+            ).data or []
+
+            grade_buckets = {}
+
+            for row in grade_rows:
+                row_user_id = str(row.get("user_id") or "")
+                grade_value = row.get("study_grade")
+
+                if not row_user_id or grade_value is None:
+                    continue
+
+                try:
+                    grade_value = float(grade_value)
+                except (TypeError, ValueError):
+                    continue
+
+                grade_buckets.setdefault(
+                    row_user_id,
+                    [],
+                ).append(grade_value)
+
+            final_grade_map = {
+                row_user_id: round(
+                    sum(values) / len(values),
+                    2,
+                )
+                for row_user_id, values in grade_buckets.items()
+                if values
+            }
+
+            final_average_grade = final_grade_map.get(
+                str(user["id"])
+            )
+
+            # 개인 최종 랭킹에 표시되는 평균 등급도
+            # 동일하게 8월 13일까지의 값으로 덮어쓴다.
+            for ranking_item in personal_rankings:
+                ranking_user_id = str(
+                    ranking_item.get("user_id")
+                    or ranking_item.get("id")
+                    or ""
+                )
+
+                ranking_item["average_grade"] = (
+                    final_grade_map.get(ranking_user_id)
+                )
 
             goal_seconds = int(user.get("daily_goal_seconds") or 28800)
             if goal_seconds <= 0:
@@ -59,6 +117,7 @@ def register_main_routes(app):
                 personal_rank=personal_rank,
                 today_rank=today_rank,
                 class_rank=class_rank,
+                final_average_grade=final_average_grade,
                 goal_seconds=goal_seconds,
                 goal_percentage=goal_percentage,
                 study_grade=study_grade_info["grade"],
