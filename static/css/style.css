@@ -1241,3 +1241,101 @@ a {
     font-size: 30px;
   }
 }
+
+/* =========================================================
+   Final results mode
+   ========================================================= */
+.final-results-page { min-height: 100vh; background: #f7f8fb; }
+.final-topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.final-results-wrap { padding-top: 28px; padding-bottom: 64px; }
+.final-hero { padding: 40px; text-align:center; margin-bottom:20px; }
+.final-hero h2 { margin:8px 0 10px; font-size:clamp(28px,5vw,46px); letter-spacing:-.04em; }
+.final-hero p:last-child { margin:0; color:#667085; }
+.final-my-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:20px; }
+.final-stat-card { padding:24px; display:flex; flex-direction:column; gap:8px; }
+.final-stat-card > span { color:#667085; font-size:14px; }
+.final-stat-card > strong { font-size:clamp(25px,4vw,36px); letter-spacing:-.04em; }
+.final-stat-card > small { color:#98a2b3; }
+.final-ranking-grid { display:grid; grid-template-columns:1.2fr .8fr; gap:20px; }
+.final-ranking-card { padding:24px; min-width:0; }
+.final-section-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.final-section-head h3 { margin:4px 0 0; font-size:22px; }
+.final-ranking-list { display:flex; flex-direction:column; gap:8px; }
+.final-rank-row { display:grid; grid-template-columns:44px minmax(0,1fr) auto; align-items:center; gap:12px; padding:14px; border:1px solid #eaecf0; border-radius:14px; background:#fff; }
+.final-rank-row.is-me { border:2px solid #111827; background:#f9fafb; }
+.final-rank-number { width:36px; height:36px; border-radius:50%; display:grid; place-items:center; background:#f2f4f7; font-weight:800; }
+.final-rank-row:nth-child(1) .final-rank-number { background:#fff3bf; }
+.final-rank-row:nth-child(2) .final-rank-number { background:#e9ecef; }
+.final-rank-row:nth-child(3) .final-rank-number { background:#ffe8cc; }
+.final-rank-name { min-width:0; display:flex; flex-direction:column; gap:3px; }
+.final-rank-name strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.final-rank-name small, .final-rank-score small { color:#98a2b3; }
+.final-rank-name em { display:inline-block; margin-left:6px; padding:2px 7px; border-radius:999px; background:#111827; color:#fff; font-size:10px; font-style:normal; vertical-align:2px; }
+.final-rank-score { text-align:right; display:flex; flex-direction:column; gap:3px; }
+.final-rank-score span { font-weight:700; }
+.final-user-card { margin-top:20px; padding:24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.final-user-card h3 { margin:4px 0; }
+.final-user-card p { margin:0; color:#667085; }
+.final-user-card > strong { font-size:24px; }
+@media (max-width: 800px) {
+  .final-my-grid, .final-ranking-grid { grid-template-columns:1fr; }
+  .final-hero { padding:30px 20px; }
+  .final-ranking-card { padding:18px; }
+  .final-rank-row { grid-template-columns:38px minmax(0,1fr) auto; padding:12px 10px; }
+  .final-rank-score { font-size:13px; }
+}
+@media (max-width: 520px) {
+  .final-topbar h1 { font-size:14px; }
+  .final-topbar img { width:34px; height:34px; }
+  .final-rank-score small { display:none; }
+}
+
+.final-grade-card > strong { white-space:nowrap; }
+.final-user-score { display:flex; align-items:flex-end; flex-direction:column; gap:4px; text-align:right; }
+.final-user-score > span { color:#667085; font-size:14px; font-weight:700; }
+.final-user-score > strong { font-size:24px; }
+@media (max-width: 1050px) {
+  .final-my-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 800px) {
+  .final-my-grid { grid-template-columns:1fr; }
+}
+
+
+/* =========================================================
+   Final results - split time / grade rankings
+   ========================================================= */
+
+.final-ranking-grid-three {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.final-ranking-grid-three .final-ranking-card:last-child {
+  grid-column: 1 / -1;
+}
+
+.final-ranking-grid-three .final-ranking-card:last-child .final-ranking-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1050px) {
+  .final-ranking-grid-three {
+    grid-template-columns: 1fr;
+  }
+
+  .final-ranking-grid-three .final-ranking-card:last-child {
+    grid-column: auto;
+  }
+
+  .final-ranking-grid-three .final-ranking-card:last-child .final-ranking-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .final-ranking-grid-three {
+    grid-template-columns: 1fr;
+  }
+}

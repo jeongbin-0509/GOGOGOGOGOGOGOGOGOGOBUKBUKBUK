@@ -1,0 +1,275 @@
+:root {
+    --focus-bg: #f4f7fb;
+    --focus-card: #ffffff;
+    --focus-primary: #4f7cff;
+    --focus-danger: #ef4444;
+    --focus-success: #22c55e;
+    --focus-text: #222;
+    --focus-sub: #777;
+    --focus-border: #e8e8e8;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Pretendard,sans-serif;
+}
+
+body{
+    background:var(--focus-bg);
+    color:var(--focus-text);
+}
+
+.focus-page{
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:40px;
+}
+
+.focus-container{
+    width:100%;
+    max-width:900px;
+}
+
+.focus-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:25px;
+}
+
+.focus-logo{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    text-decoration:none;
+    color:#222;
+    font-weight:700;
+    font-size:22px;
+}
+
+.focus-logo img{
+    width:48px;
+}
+
+.focus-user{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    color:#666;
+}
+
+.focus-user-divider{
+    width:5px;
+    height:5px;
+    background:#bbb;
+    border-radius:50%;
+}
+
+.focus-card{
+    background:white;
+    border-radius:25px;
+    padding:45px;
+    box-shadow:0 10px 35px rgba(0,0,0,.08);
+}
+
+.focus-card-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+}
+
+.focus-caption{
+    color:#888;
+    margin-bottom:6px;
+}
+
+.focus-card h1{
+    font-size:38px;
+}
+
+.focus-status{
+    padding:8px 18px;
+    border-radius:999px;
+    font-weight:700;
+}
+
+.focus-status-running{
+    background:#dff8e7;
+    color:#138a3d;
+}
+
+.focus-status-pause{
+    background:#fff4d6;
+    color:#b77900;
+}
+
+.focus-timer-section{
+    margin-top:45px;
+    text-align:center;
+}
+
+.focus-timer-label{
+    color:#888;
+}
+
+.focus-timer{
+    display:block;
+    font-size:74px;
+    margin-top:10px;
+    font-weight:800;
+    letter-spacing:3px;
+}
+
+.focus-started-at{
+    margin-top:12px;
+    color:#999;
+}
+
+.focus-progress-section{
+    margin-top:45px;
+}
+
+.focus-progress-header{
+    display:flex;
+    justify-content:space-between;
+    margin-bottom:12px;
+    font-weight:600;
+}
+
+.focus-progress-bar{
+    width:100%;
+    height:14px;
+    background:#eee;
+    border-radius:999px;
+    overflow:hidden;
+}
+
+.focus-progress-fill{
+    width:0%;
+    height:100%;
+    background:var(--focus-primary);
+    transition:.3s;
+}
+
+.focus-summary{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:18px;
+    margin-top:35px;
+}
+
+.focus-summary-item{
+    background:#fafafa;
+    border:1px solid #eee;
+    border-radius:18px;
+    padding:20px;
+}
+
+.focus-summary-item span{
+    display:block;
+    color:#888;
+    margin-bottom:8px;
+}
+
+.focus-summary-item strong{
+    font-size:24px;
+}
+
+.focus-grade-message{
+    margin-top:28px;
+    padding:16px;
+    background:#eef4ff;
+    border-radius:15px;
+    color:#345;
+}
+
+.focus-button-group{
+    display:flex;
+    gap:16px;
+    margin-top:35px;
+}
+
+.btn{
+    flex:1;
+    padding:18px;
+    border:none;
+    border-radius:15px;
+    cursor:pointer;
+    font-size:18px;
+    font-weight:700;
+}
+
+.btn-outline{
+    background:white;
+    border:2px solid #ddd;
+}
+
+.btn-danger{
+    background:var(--focus-danger);
+    color:white;
+}
+
+.focus-notice{
+    margin-top:25px;
+    color:#888;
+    text-align:center;
+    font-size:14px;
+}
+
+.focus-modal{
+    position:fixed;
+    inset:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:1000;
+}
+
+.focus-modal-backdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(0,0,0,.4);
+}
+
+.focus-modal-panel{
+    position:relative;
+    background:white;
+    width:420px;
+    border-radius:20px;
+    padding:30px;
+    z-index:10;
+}
+
+.focus-modal-panel h2{
+    margin-bottom:15px;
+}
+
+.focus-modal-buttons{
+    display:flex;
+    gap:12px;
+    margin-top:25px;
+}
+
+@media(max-width:700px){
+
+.focus-summary{
+grid-template-columns:1fr;
+}
+
+.focus-card{
+padding:28px;
+}
+
+.focus-timer{
+font-size:50px;
+}
+
+.focus-button-group{
+flex-direction:column;
+}
+
+}
